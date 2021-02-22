@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -43,8 +43,8 @@
 #include <usb.h>
 #endif
 #ifdef __DragonFly__
-#include <bus/u4b/usb.h>
-#include <bus/u4b/usbhid.h>
+#include <bus/usb/usb.h>
+#include <bus/usb/usbhid.h>
 #else
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -59,17 +59,16 @@
 #endif
 
 #if defined(__FREEBSD__) || defined(__FreeBSD_kernel__)
+#ifndef __DragonFly__
 #include <osreldate.h>
+#endif
 #if __FreeBSD_kernel_version > 800063
 #include <dev/usb/usb_ioctl.h>
 #endif
 #include <sys/joystick.h>
-#elif defined(__DragonFly__)
-#include <bus/u4b/usb_ioctl.h>
-#include <sys/joystick.h>
 #endif
 
-#if SDL_HAVE_MACHINE_JOYSTICK_H
+#if SDL_JOYSTICK_USBHID_MACHINE_JOYSTICK_H
 #include <machine/joystick.h>
 #endif
 
@@ -127,8 +126,7 @@ dpad_to_sdl(Sint32 *dpad)
 
 struct report
 {
-#if defined(__FREEBSD__) && (__FreeBSD_kernel_version > 900000) || \
-    defined(__DragonFly__)
+#if defined(__FREEBSD__) && (__FreeBSD_kernel_version > 900000)
     void *buf; /* Buffer */
 #elif defined(__FREEBSD__) && (__FreeBSD_kernel_version > 800063)
     struct usb_gen_descriptor *buf; /* Buffer */
@@ -198,8 +196,7 @@ static void report_free(struct report *);
 
 #if defined(USBHID_UCR_DATA) || (defined(__FreeBSD_kernel__) && __FreeBSD_kernel_version <= 800063)
 #define REP_BUF_DATA(rep) ((rep)->buf->ucr_data)
-#elif (defined(__FREEBSD__) && (__FreeBSD_kernel_version > 900000)) || \
-    defined(__DragonFly__)
+#elif (defined(__FREEBSD__) && (__FreeBSD_kernel_version > 900000))
 #define REP_BUF_DATA(rep) ((rep)->buf)
 #elif (defined(__FREEBSD__) && (__FreeBSD_kernel_version > 800063))
 #define REP_BUF_DATA(rep) ((rep)->buf->ugd_data)
@@ -396,7 +393,7 @@ BSD_JoystickOpen(SDL_Joystick *joy, int device_index)
         goto usberr;
     }
     rep = &hw->inreport;
-#if defined(__FREEBSD__) && (__FreeBSD_kernel_version > 800063) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#if defined(__FREEBSD__) && (__FreeBSD_kernel_version > 800063) || defined(__FreeBSD_kernel__)
     rep->rid = hid_get_report_id(fd);
     if (rep->rid < 0) {
 #else
@@ -442,7 +439,7 @@ desc_failed:
                      hw->path);
         goto usberr;
     }
-#if defined(USBHID_NEW) || (defined(__FREEBSD__) && __FreeBSD_kernel_version >= 500111) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#if defined(USBHID_NEW) || (defined(__FREEBSD__) && __FreeBSD_kernel_version >= 500111) || defined(__FreeBSD_kernel__)
     hdata = hid_start_parse(hw->repdesc, 1 << hid_input, rep->rid);
 #else
     hdata = hid_start_parse(hw->repdesc, 1 << hid_input);
@@ -546,7 +543,7 @@ BSD_JoystickUpdate(SDL_Joystick *joy)
     Sint32 dpad[4] = {0, 0, 0, 0};
 #endif
 
-#if defined(__FREEBSD__) || SDL_HAVE_MACHINE_JOYSTICK_H || defined(__FreeBSD_kernel__) || defined(__DragonFly_)
+#if defined(__FREEBSD__) || SDL_JOYSTICK_USBHID_MACHINE_JOYSTICK_H || defined(__FreeBSD_kernel__)
     struct joystick gameport;
     static int x, y, xmin = 0xffff, ymin = 0xffff, xmax = 0, ymax = 0;
 
@@ -591,12 +588,12 @@ BSD_JoystickUpdate(SDL_Joystick *joy)
         }
         return;
     }
-#endif /* defined(__FREEBSD__) || SDL_HAVE_MACHINE_JOYSTICK_H */
+#endif /* defined(__FREEBSD__) || SDL_JOYSTICK_USBHID_MACHINE_JOYSTICK_H */
 
     rep = &joy->hwdata->inreport;
 
     while (read(joy->hwdata->fd, REP_BUF_DATA(rep), rep->size) == rep->size) {
-#if defined(USBHID_NEW) || (defined(__FREEBSD__) && __FreeBSD_kernel_version >= 500111) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#if defined(USBHID_NEW) || (defined(__FREEBSD__) && __FreeBSD_kernel_version >= 500111) || defined(__FreeBSD_kernel__)
         hdata = hid_start_parse(joy->hwdata->repdesc, 1 << hid_input, rep->rid);
 #else
         hdata = hid_start_parse(joy->hwdata->repdesc, 1 << hid_input);
@@ -710,7 +707,7 @@ report_alloc(struct report *r, struct report_desc *rd, int repind)
     int len;
 
 #ifdef __DragonFly__
-    len = hid_report_size(rd, repinfo[repind].kind, r->rid);
+    len = hid_report_size(rd, r->rid, repinfo[repind].kind);
 #elif __FREEBSD__
 # if (__FreeBSD_kernel_version >= 460000) || defined(__FreeBSD_kernel__)
 #  if (__FreeBSD_kernel_version <= 500111)
@@ -735,7 +732,7 @@ report_alloc(struct report *r, struct report_desc *rd, int repind)
     r->size = len;
 
     if (r->size > 0) {
-#if defined(__FREEBSD__) && (__FreeBSD_kernel_version > 900000) || defined(__DragonFly__)
+#if defined(__FREEBSD__) && (__FreeBSD_kernel_version > 900000)
         r->buf = SDL_malloc(r->size);
 #else
         r->buf = SDL_malloc(sizeof(*r->buf) - sizeof(REP_BUF_DATA(r)) +

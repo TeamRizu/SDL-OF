@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -87,18 +87,15 @@ static int fatal_signals[] =
 
 static void kbd_cleanup(void)
 {
-    struct mouse_info mData;
     SDL_EVDEV_keyboard_state* kbd = kbd_cleanup_state;
     if (kbd == NULL) {
         return;
     }
     kbd_cleanup_state = NULL;
-    SDL_zero(mData);
-    mData.operation = MOUSE_SHOW;
+    
     ioctl(kbd->keyboard_fd, KDSKBMODE, kbd->old_kbd_mode);
     if (kbd->keyboard_fd != kbd->console_fd) close(kbd->keyboard_fd);
     ioctl(kbd->console_fd, CONS_SETKBD, (unsigned long)(kbd->kbInfo->kb_index));
-    ioctl(kbd->console_fd, CONS_MOUSECTL, &mData);
 }
 
 void
@@ -224,12 +221,9 @@ SDL_EVDEV_keyboard_state *
 SDL_EVDEV_kbd_init(void)
 {
     SDL_EVDEV_keyboard_state *kbd;
-    struct mouse_info mData;
     char flag_state;
     char* devicePath;
 
-    SDL_zero(mData);
-    mData.operation = MOUSE_HIDE;
     kbd = (SDL_EVDEV_keyboard_state *)SDL_calloc(1, sizeof(SDL_EVDEV_keyboard_state));
     if (!kbd) {
         return NULL;
@@ -247,8 +241,7 @@ SDL_EVDEV_kbd_init(void)
     kbd->kbInfo = SDL_calloc(sizeof(keyboard_info_t), 1);    
 
     ioctl(kbd->console_fd, KDGKBINFO, kbd->kbInfo);
-    ioctl(kbd->console_fd, CONS_MOUSECTL, &mData);
-    
+
     if (ioctl(kbd->console_fd, KDGKBSTATE, &flag_state) == 0) {
         kbd->ledflagstate = flag_state;
     }
@@ -257,8 +250,8 @@ SDL_EVDEV_kbd_init(void)
     {
         SDL_free(kbd->accents);
         kbd->accents = &accentmap_default_us_acc;
-    }
-
+    } 
+    
     if (ioctl(kbd->console_fd, KDGKBMODE, &kbd->old_kbd_mode) == 0) {
         /* Set the keyboard in XLATE mode and load the keymaps */
         ioctl(kbd->console_fd, KDSKBMODE, (unsigned long)(K_XLATE));
@@ -292,28 +285,23 @@ SDL_EVDEV_kbd_init(void)
         }
         else kbd->keyboard_fd = kbd->console_fd;
     }
-
+    
     return kbd;
 }
 
 void
 SDL_EVDEV_kbd_quit(SDL_EVDEV_keyboard_state *kbd)
 {
-    struct mouse_info mData;
-
     if (!kbd) {
         return;
     }
-    SDL_zero(mData);
-    mData.operation = MOUSE_SHOW;
-    ioctl(kbd->console_fd, CONS_MOUSECTL, &mData);
 
     kbd_unregister_emerg_cleanup();
 
     if (kbd->keyboard_fd >= 0) {
         /* Restore the original keyboard mode */
         ioctl(kbd->keyboard_fd, KDSKBMODE, kbd->old_kbd_mode);
-
+                
         close(kbd->keyboard_fd);
         if (kbd->console_fd != kbd->keyboard_fd && kbd->console_fd >= 0)
         {
@@ -374,14 +362,14 @@ static void put_utf8(SDL_EVDEV_keyboard_state *kbd, uint c)
 static unsigned int handle_diacr(SDL_EVDEV_keyboard_state *kbd, unsigned int ch)
 {
     unsigned int d = kbd->diacr;
-    unsigned int i, j;
+    unsigned int i;
 
     kbd->diacr = 0;
 
     for (i = 0; i < kbd->accents->n_accs; i++) {
         if (kbd->accents->acc[i].accchar == d)
         {
-            for (j = 0; j < NUM_ACCENTCHARS; ++j) {
+            for (int j = 0; j < NUM_ACCENTCHARS; ++j) {
                     if (kbd->accents->acc[i].map[j][0] == 0)        /* end of table */
                             break;
                     if (kbd->accents->acc[i].map[j][0] == ch)
@@ -474,9 +462,9 @@ SDL_EVDEV_kbd_keycode(SDL_EVDEV_keyboard_state *kbd, unsigned int keycode, int d
     struct keyent_t keysym;
     unsigned int final_key_state;
     unsigned int map_from_key_sym;
-
+    
     key_map = *kbd->key_map;
-
+    
     if (!kbd) {
         return;
     }
@@ -488,7 +476,7 @@ SDL_EVDEV_kbd_keycode(SDL_EVDEV_keyboard_state *kbd, unsigned int keycode, int d
             /* These constitute unprintable language-related keys, so ignore them. */
             return;
         }
-        if (keycode > 95)
+        if (keycode > 95) 
             keycode -= 7;
         if (vc_kbd_led(kbd, ALKED) || (kbd->shift_state & 0x8))
         {
@@ -498,13 +486,13 @@ SDL_EVDEV_kbd_keycode(SDL_EVDEV_keyboard_state *kbd, unsigned int keycode, int d
     } else {
         return;
     }
-
+    
     final_key_state = kbd->shift_state & 0x7;
     if ((keysym.flgs & FLAG_LOCK_C) && vc_kbd_led(kbd, LED_CAP))
         final_key_state ^= 0x1;
     if ((keysym.flgs & FLAG_LOCK_N) && vc_kbd_led(kbd, LED_NUM))
         final_key_state ^= 0x1;
-
+        
     map_from_key_sym = keysym.map[final_key_state];
     if ((keysym.spcl & (0x80 >> final_key_state)) || (map_from_key_sym & SPCLKEY)) {
         /* Special function.*/
@@ -518,7 +506,7 @@ SDL_EVDEV_kbd_keycode(SDL_EVDEV_keyboard_state *kbd, unsigned int keycode, int d
             if (kbd->accents->acc[accent_index].accchar != 0) {
                 k_deadunicode(kbd, kbd->accents->acc[accent_index].accchar, !down);
             }
-        } else {
+        } else { 
             switch(map_from_key_sym) {
             case ASH: /* alt/meta shift */
                 k_shift(kbd, 3, down == 0);
@@ -561,12 +549,12 @@ SDL_EVDEV_kbd_keycode(SDL_EVDEV_keyboard_state *kbd, unsigned int keycode, int d
             }
         }
     } else {
-        if (map_from_key_sym == '\n' || map_from_key_sym == '\r') {
-            if (kbd->diacr) {
-                kbd->diacr = 0;
-                return;
-            }
-        }
+    	if (map_from_key_sym == '\n' || map_from_key_sym == '\r') {
+			if (kbd->diacr) {
+				kbd->diacr = 0;
+				return;
+			}
+		}
         if (map_from_key_sym >= ' ' && map_from_key_sym != 127) {
             k_self(kbd, map_from_key_sym, !down);
         }

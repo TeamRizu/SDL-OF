@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1899,15 +1899,10 @@ SDL_vsnprintf(SDL_OUT_Z_CAP(maxlen) char *text, size_t maxlen, const char *fmt, 
                     {
                         /* In practice this is used on Windows for WCHAR strings */
                         wchar_t *wide_arg = va_arg(ap, wchar_t *);
-                        if (wide_arg) {
-                            char *arg = SDL_iconv_string("UTF-8", "UTF-16LE", (char *)(wide_arg), (SDL_wcslen(wide_arg)+1)*sizeof(*wide_arg));
-                            info.pad_zeroes = SDL_FALSE;
-                            len = SDL_PrintString(text, left, &info, arg);
-                            SDL_free(arg);
-                        } else {
-                            info.pad_zeroes = SDL_FALSE;
-                            len = SDL_PrintString(text, left, &info, NULL);
-                        }
+                        char *arg = SDL_iconv_string("UTF-8", "UTF-16LE", (char *)(wide_arg), (SDL_wcslen(wide_arg)+1)*sizeof(*wide_arg));
+                        info.pad_zeroes = SDL_FALSE;
+                        len = SDL_PrintString(text, left, &info, arg);
+                        SDL_free(arg);
                         done = SDL_TRUE;
                     }
                     break;

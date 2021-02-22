@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1433,16 +1433,8 @@ SDL_FinishWindowCreation(SDL_Window *window, Uint32 flags)
     if (flags & SDL_WINDOW_FULLSCREEN) {
         SDL_SetWindowFullscreen(window, flags);
     }
-    if (flags & SDL_WINDOW_MOUSE_GRABBED) {
-        /* We must specifically call SDL_SetWindowGrab() and not
-           SDL_SetWindowMouseGrab() here because older applications may use
-           this flag plus SDL_HINT_GRAB_KEYBOARD to indicate that they want
-           the keyboard grabbed too and SDL_SetWindowMouseGrab() won't do that.
-        */
+    if (flags & SDL_WINDOW_INPUT_GRABBED) {
         SDL_SetWindowGrab(window, SDL_TRUE);
-    }
-    if (flags & SDL_WINDOW_KEYBOARD_GRABBED) {
-        SDL_SetWindowKeyboardGrab(window, SDL_TRUE);
     }
     if (!(flags & SDL_WINDOW_HIDDEN)) {
         SDL_ShowWindow(window);
@@ -1453,7 +1445,6 @@ SDL_Window *
 SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
 {
     SDL_Window *window;
-    Uint32 graphics_flags = flags & (SDL_WINDOW_OPENGL | SDL_WINDOW_METAL | SDL_WINDOW_VULKAN);
 
     if (!_this) {
         /* Initialize the video system if needed */
@@ -1481,16 +1472,12 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
         return NULL;
     }
 
-    /* Some platforms have certain graphics backends enabled by default */
-    if (!_this->is_dummy && !graphics_flags && !SDL_IsVideoContextExternal()) {
-#if (SDL_VIDEO_OPENGL && __MACOSX__) || (__IPHONEOS__ && !TARGET_OS_MACCATALYST) || __ANDROID__ || __NACL__
+    /* Some platforms have OpenGL enabled by default */
+#if (SDL_VIDEO_OPENGL && __MACOSX__) || __IPHONEOS__ || __ANDROID__ || __NACL__
+    if (!_this->is_dummy && !(flags & SDL_WINDOW_VULKAN) && !(flags & SDL_WINDOW_METAL) && !SDL_IsVideoContextExternal()) {
         flags |= SDL_WINDOW_OPENGL;
-#endif
-#if SDL_VIDEO_METAL && (TARGET_OS_MACCATALYST || __MACOSX__ || __IPHONEOS__)
-        flags |= SDL_WINDOW_METAL;
-#endif
     }
-
+#endif
     if (flags & SDL_WINDOW_OPENGL) {
         if (!_this->GL_CreateContext) {
             SDL_SetError("OpenGL support is either not configured in SDL "
@@ -1510,7 +1497,7 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
                          "(%s) or platform", _this->name);
             return NULL;
         }
-        if (graphics_flags & SDL_WINDOW_OPENGL) {
+        if (flags & SDL_WINDOW_OPENGL) {
             SDL_SetError("Vulkan and OpenGL not supported on same window");
             return NULL;
         }
@@ -1526,12 +1513,11 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
                          "(%s) or platform", _this->name);
             return NULL;
         }
-        /* 'flags' may have default flags appended, don't check against that. */
-        if (graphics_flags & SDL_WINDOW_OPENGL) {
+        if (flags & SDL_WINDOW_OPENGL) {
             SDL_SetError("Metal and OpenGL not supported on same window");
             return NULL;
         }
-        if (graphics_flags & SDL_WINDOW_VULKAN) {
+        if (flags & SDL_WINDOW_VULKAN) {
             SDL_SetError("Metal and Vulkan not supported on same window. "
                          "To use MoltenVK, set SDL_WINDOW_VULKAN only.");
             return NULL;
@@ -1785,7 +1771,7 @@ SDL_RecreateWindow(SDL_Window * window, Uint32 flags)
         loaded_opengl = SDL_TRUE;
     }
 
-    if (need_vulkan_load) {
+    if (need_vulkan_unload) {
         if (SDL_Vulkan_LoadLibrary(NULL) < 0) {
             return -1;
         }
@@ -2648,46 +2634,31 @@ SDL_GetWindowGammaRamp(SDL_Window * window, Uint16 * red,
 void
 SDL_UpdateWindowGrab(SDL_Window * window)
 {
-    SDL_bool keyboard_grabbed, mouse_grabbed;
-
-    if (window->flags & SDL_WINDOW_INPUT_FOCUS) {
-        if (SDL_GetMouse()->relative_mode || (window->flags & SDL_WINDOW_MOUSE_GRABBED)) {
-            mouse_grabbed = SDL_TRUE;
-        } else {
-            mouse_grabbed = SDL_FALSE;
-        }
-
-        if (window->flags & SDL_WINDOW_KEYBOARD_GRABBED) {
-            keyboard_grabbed = SDL_TRUE;
-        } else {
-            keyboard_grabbed = SDL_FALSE;
-        }
+    SDL_Window *grabbed_window;
+    SDL_bool grabbed;
+    if ((SDL_GetMouse()->relative_mode || (window->flags & SDL_WINDOW_INPUT_GRABBED)) &&
+         (window->flags & SDL_WINDOW_INPUT_FOCUS)) {
+        grabbed = SDL_TRUE;
     } else {
-        mouse_grabbed = SDL_FALSE;
-        keyboard_grabbed = SDL_FALSE;
+        grabbed = SDL_FALSE;
     }
 
-    if (mouse_grabbed || keyboard_grabbed) {
-        if (_this->grabbed_window && (_this->grabbed_window != window)) {
+    grabbed_window = _this->grabbed_window;
+    if (grabbed) {
+        if (grabbed_window && (grabbed_window != window)) {
             /* stealing a grab from another window! */
-            _this->grabbed_window->flags &= ~(SDL_WINDOW_MOUSE_GRABBED | SDL_WINDOW_KEYBOARD_GRABBED);
-            if (_this->SetWindowMouseGrab) {
-                _this->SetWindowMouseGrab(_this, _this->grabbed_window, SDL_FALSE);
-            }
-            if (_this->SetWindowKeyboardGrab) {
-                _this->SetWindowKeyboardGrab(_this, _this->grabbed_window, SDL_FALSE);
+            grabbed_window->flags &= ~SDL_WINDOW_INPUT_GRABBED;
+            if (_this->SetWindowGrab) {
+                _this->SetWindowGrab(_this, grabbed_window, SDL_FALSE);
             }
         }
         _this->grabbed_window = window;
-    } else if (_this->grabbed_window == window) {
-        _this->grabbed_window = NULL;  /* ungrabbing input. */
+    } else if (grabbed_window == window) {
+        _this->grabbed_window = NULL;  /* ungrabbing. */
     }
 
-    if (_this->SetWindowMouseGrab) {
-        _this->SetWindowMouseGrab(_this, window, mouse_grabbed);
-    }
-    if (_this->SetWindowKeyboardGrab) {
-        _this->SetWindowKeyboardGrab(_this, window, keyboard_grabbed);
+    if (_this->SetWindowGrab) {
+        _this->SetWindowGrab(_this, window, grabbed);
     }
 }
 
@@ -2696,41 +2667,13 @@ SDL_SetWindowGrab(SDL_Window * window, SDL_bool grabbed)
 {
     CHECK_WINDOW_MAGIC(window,);
 
-    SDL_SetWindowMouseGrab(window, grabbed);
-
-    if (SDL_GetHintBoolean(SDL_HINT_GRAB_KEYBOARD, SDL_FALSE)) {
-        SDL_SetWindowKeyboardGrab(window, grabbed);
-    }
-}
-
-void
-SDL_SetWindowKeyboardGrab(SDL_Window * window, SDL_bool grabbed)
-{
-    CHECK_WINDOW_MAGIC(window,);
-
-    if (!!grabbed == !!(window->flags & SDL_WINDOW_KEYBOARD_GRABBED)) {
+    if (!!grabbed == !!(window->flags & SDL_WINDOW_INPUT_GRABBED)) {
         return;
     }
     if (grabbed) {
-        window->flags |= SDL_WINDOW_KEYBOARD_GRABBED;
+        window->flags |= SDL_WINDOW_INPUT_GRABBED;
     } else {
-        window->flags &= ~SDL_WINDOW_KEYBOARD_GRABBED;
-    }
-    SDL_UpdateWindowGrab(window);
-}
-
-void
-SDL_SetWindowMouseGrab(SDL_Window * window, SDL_bool grabbed)
-{
-    CHECK_WINDOW_MAGIC(window,);
-
-    if (!!grabbed == !!(window->flags & SDL_WINDOW_MOUSE_GRABBED)) {
-        return;
-    }
-    if (grabbed) {
-        window->flags |= SDL_WINDOW_MOUSE_GRABBED;
-    } else {
-        window->flags &= ~SDL_WINDOW_MOUSE_GRABBED;
+        window->flags &= ~SDL_WINDOW_INPUT_GRABBED;
     }
     SDL_UpdateWindowGrab(window);
 }
@@ -2739,34 +2682,14 @@ SDL_bool
 SDL_GetWindowGrab(SDL_Window * window)
 {
     CHECK_WINDOW_MAGIC(window, SDL_FALSE);
-    SDL_assert(!_this->grabbed_window ||
-               ((_this->grabbed_window->flags & SDL_WINDOW_MOUSE_GRABBED) != 0) ||
-               ((_this->grabbed_window->flags & SDL_WINDOW_KEYBOARD_GRABBED) != 0));
+    SDL_assert(!_this->grabbed_window || ((_this->grabbed_window->flags & SDL_WINDOW_INPUT_GRABBED) != 0));
     return window == _this->grabbed_window;
-}
-
-SDL_bool
-SDL_GetWindowKeyboardGrab(SDL_Window * window)
-{
-    CHECK_WINDOW_MAGIC(window, SDL_FALSE);
-    return window == _this->grabbed_window &&
-           ((_this->grabbed_window->flags & SDL_WINDOW_KEYBOARD_GRABBED) != 0);
-}
-
-SDL_bool
-SDL_GetWindowMouseGrab(SDL_Window * window)
-{
-    CHECK_WINDOW_MAGIC(window, SDL_FALSE);
-    return window == _this->grabbed_window &&
-           ((_this->grabbed_window->flags & SDL_WINDOW_MOUSE_GRABBED) != 0);
 }
 
 SDL_Window *
 SDL_GetGrabbedWindow(void)
 {
-    SDL_assert(!_this->grabbed_window ||
-               ((_this->grabbed_window->flags & SDL_WINDOW_MOUSE_GRABBED) != 0) ||
-               ((_this->grabbed_window->flags & SDL_WINDOW_KEYBOARD_GRABBED) != 0));
+    SDL_assert(!_this->grabbed_window || ((_this->grabbed_window->flags & SDL_WINDOW_INPUT_GRABBED) != 0));
     return _this->grabbed_window;
 }
 
@@ -4074,7 +3997,6 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
     int show_cursor_prev;
     SDL_bool mouse_captured;
     SDL_Window *current_window;
-    SDL_MessageBoxData mbdata;
 
     if (!messageboxdata) {
         return SDL_InvalidParamError("messageboxdata");
@@ -4093,11 +4015,6 @@ SDL_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
     if (!buttonid) {
         buttonid = &dummybutton;
     }
-
-    SDL_memcpy(&mbdata, messageboxdata, sizeof(*messageboxdata));
-    if (!mbdata.title) mbdata.title = "";
-    if (!mbdata.message) mbdata.message = "";
-    messageboxdata = &mbdata;
 
     if (_this && _this->ShowMessageBox) {
         retval = _this->ShowMessageBox(_this, messageboxdata, buttonid);
@@ -4184,8 +4101,6 @@ SDL_ShowSimpleMessageBox(Uint32 flags, const char *title, const char *message, S
     /* Web browsers don't (currently) have an API for a custom message box
        that can block, but for the most common case (SDL_ShowSimpleMessageBox),
        we can use the standard Javascript alert() function. */
-    if (!title) title = "";
-    if (!message) message = "";
     EM_ASM_({
         alert(UTF8ToString($0) + "\n\n" + UTF8ToString($1));
     }, title, message);

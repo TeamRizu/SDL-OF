@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,6 +33,7 @@
 
 #if SDL_JOYSTICK_RAWINPUT
 
+#include "SDL_assert.h"
 #include "SDL_endian.h"
 #include "SDL_events.h"
 #include "SDL_hints.h"
@@ -44,9 +45,7 @@
 #include "../../core/windows/SDL_hid.h"
 #include "../hidapi/SDL_hidapijoystick_c.h"
 
-#ifdef HAVE_XINPUT_H
 #define SDL_JOYSTICK_RAWINPUT_XINPUT
-#endif
 #ifdef SDL_WINDOWS10_SDK
 #define SDL_JOYSTICK_RAWINPUT_WGI
 #endif
@@ -69,6 +68,7 @@ typedef struct WindowsGamingInputGamepadState WindowsGamingInputGamepadState;
 #endif
 
 /*#define DEBUG_RAWINPUT*/
+#define DEBUG_RAWINPUT
 
 #ifndef RIDEV_EXINPUTSINK
 #define RIDEV_EXINPUTSINK       0x00001000
@@ -542,19 +542,21 @@ RAWINPUT_InitWindowsGamingInput(RAWINPUT_DeviceContext *ctx)
         HRESULT hr;
         HMODULE hModule = LoadLibraryA("combase.dll");
         if (hModule != NULL) {
-            typedef HRESULT (WINAPI *WindowsCreateStringReference_t)(PCWSTR sourceString, UINT32 length, HSTRING_HEADER *hstringHeader, HSTRING* string);
+            typedef HRESULT (WINAPI *WindowsCreateString_t)(PCNZWCH sourceString, UINT32 length, HSTRING* string);
+            typedef HRESULT (WINAPI *WindowsDeleteString_t)(HSTRING string);
             typedef HRESULT (WINAPI *RoGetActivationFactory_t)(HSTRING activatableClassId, REFIID iid, void** factory);
 
-            WindowsCreateStringReference_t WindowsCreateStringReferenceFunc = (WindowsCreateStringReference_t)GetProcAddress(hModule, "WindowsCreateStringReference");
+            WindowsCreateString_t WindowsCreateStringFunc = (WindowsCreateString_t)GetProcAddress(hModule, "WindowsCreateString");
+            WindowsDeleteString_t WindowsDeleteStringFunc = (WindowsDeleteString_t)GetProcAddress(hModule, "WindowsDeleteString");
             RoGetActivationFactory_t RoGetActivationFactoryFunc = (RoGetActivationFactory_t)GetProcAddress(hModule, "RoGetActivationFactory");
-            if (WindowsCreateStringReferenceFunc && RoGetActivationFactoryFunc) {
-                PCWSTR pNamespace = L"Windows.Gaming.Input.Gamepad";
-                HSTRING_HEADER hNamespaceStringHeader;
+            if (WindowsCreateStringFunc && WindowsDeleteStringFunc && RoGetActivationFactoryFunc) {
+                LPTSTR pNamespace = L"Windows.Gaming.Input.Gamepad";
                 HSTRING hNamespaceString;
 
-                hr = WindowsCreateStringReferenceFunc(pNamespace, (UINT32)SDL_wcslen(pNamespace), &hNamespaceStringHeader, &hNamespaceString);
+                hr = WindowsCreateStringFunc(pNamespace, (UINT32)SDL_wcslen(pNamespace), &hNamespaceString);
                 if (SUCCEEDED(hr)) {
                     RoGetActivationFactoryFunc(hNamespaceString, &SDL_IID_IGamepadStatics, &wgi_state.gamepad_statics);
+                    WindowsDeleteStringFunc(hNamespaceString);
                 }
             }
             FreeLibrary(hModule);
@@ -579,10 +581,10 @@ RAWINPUT_WindowsGamingInputSlotMatches(const WindowsMatchState *state, WindowsGa
 static SDL_bool
 RAWINPUT_GuessWindowsGamingInputSlot(const WindowsMatchState *state, Uint8 *correlation_id, WindowsGamingInputGamepadState **slot)
 {
-    int match_count, user_index;
+    int match_count;
 
     match_count = 0;
-    for (user_index = 0; user_index < wgi_state.per_gamepad_count; ++user_index) {
+    for (int user_index = 0; user_index < wgi_state.per_gamepad_count; ++user_index) {
         WindowsGamingInputGamepadState *gamepad_state = wgi_state.per_gamepad[user_index];
         if (RAWINPUT_WindowsGamingInputSlotMatches(state, gamepad_state)) {
             ++match_count;
@@ -606,8 +608,7 @@ RAWINPUT_QuitWindowsGamingInput(RAWINPUT_DeviceContext *ctx)
     wgi_state.need_device_list_update = SDL_TRUE;
     --wgi_state.ref_count;
     if (!wgi_state.ref_count && wgi_state.initialized) {
-        int ii;
-        for (ii = 0; ii < wgi_state.per_gamepad_count; ii++) {
+        for (int ii = 0; ii < wgi_state.per_gamepad_count; ii++) {
             __x_ABI_CWindows_CGaming_CInput_CIGamepad_Release(wgi_state.per_gamepad[ii]->gamepad);
         }
         if (wgi_state.per_gamepad) {
@@ -735,10 +736,10 @@ RAWINPUT_AddDevice(HANDLE hDevice)
         WCHAR string[128];
 
         if (SDL_HidD_GetManufacturerString(hFile, string, sizeof(string))) {
-            manufacturer_string = WIN_StringToUTF8W(string);
+            manufacturer_string = WIN_StringToUTF8(string);
         }
         if (SDL_HidD_GetProductString(hFile, string, sizeof(string))) {
-            product_string = WIN_StringToUTF8W(string);
+            product_string = WIN_StringToUTF8(string);
         }
 
         device->name = SDL_CreateJoystickName(device->vendor_id, device->product_id, manufacturer_string, product_string);
@@ -807,7 +808,7 @@ RAWINPUT_DelDevice(SDL_RAWINPUT_Device *device, SDL_bool send_event)
             SDL_PrivateJoystickRemoved(device->joystick_id);
 
 #ifdef DEBUG_RAWINPUT
-            SDL_Log("Removing RAWINPUT device '%s' VID 0x%.4x, PID 0x%.4x, version %d, handle %p\n", device->name, device->vendor_id, device->product_id, device->version, device->hDevice);
+            SDL_Log("Removing RAWINPUT device '%s' VID 0x%.4x, PID 0x%.4x, version %d, handle 0x%.8x\n", device->name, device->vendor_id, device->product_id, device->version, device->hDevice);
 #endif
             RAWINPUT_ReleaseDevice(device);
             return;
@@ -1218,8 +1219,9 @@ RAWINPUT_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uin
 {
 #if defined(SDL_JOYSTICK_RAWINPUT_WGI) || defined(SDL_JOYSTICK_RAWINPUT_XINPUT)
     RAWINPUT_DeviceContext *ctx = joystick->hwdata;
-    SDL_bool rumbled = SDL_FALSE;
 #endif
+
+    SDL_bool rumbled = SDL_FALSE;
 
 #ifdef SDL_JOYSTICK_RAWINPUT_WGI
     if (!rumbled && ctx->wgi_correlated) {
@@ -1482,9 +1484,7 @@ RAWINPUT_UpdateOtherAPIs(SDL_Joystick *joystick)
 #ifdef SDL_JOYSTICK_RAWINPUT_WGI
     /* Parallel logic to WINDOWS_XINPUT below */
     RAWINPUT_UpdateWindowsGamingInput();
-    if (ctx->wgi_correlated &&
-        !joystick->low_frequency_rumble && !joystick->high_frequency_rumble &&
-        !joystick->left_trigger_rumble && !joystick->right_trigger_rumble) {
+    if (ctx->wgi_correlated) {
         /* We have been previously correlated, ensure we are still matching, see comments in XINPUT section */
         if (RAWINPUT_WindowsGamingInputSlotMatches(&match_state_xinput, ctx->wgi_slot)) {
             ctx->wgi_uncorrelate_count = 0;
@@ -1492,9 +1492,9 @@ RAWINPUT_UpdateOtherAPIs(SDL_Joystick *joystick)
             ++ctx->wgi_uncorrelate_count;
             /* Only un-correlate if this is consistent over multiple Update() calls - the timing of polling/event
               pumping can easily cause this to uncorrelate for a frame.  2 seemed reliable in my testing, but
-              let's set it to 5 to be safe.  An incorrect un-correlation will simply result in lower precision
+              let's set it to 3 to be safe.  An incorrect un-correlation will simply result in lower precision
               triggers for a frame. */
-            if (ctx->wgi_uncorrelate_count >= 5) {
+            if (ctx->wgi_uncorrelate_count >= 3) {
 #ifdef DEBUG_RAWINPUT
                 SDL_Log("UN-Correlated joystick %d to WindowsGamingInput device #%d\n", joystick->instance_id, ctx->wgi_slot);
 #endif
@@ -1562,8 +1562,7 @@ RAWINPUT_UpdateOtherAPIs(SDL_Joystick *joystick)
     /* Parallel logic to WINDOWS_GAMING_INPUT above */
     if (ctx->xinput_enabled) {
         RAWINPUT_UpdateXInput();
-        if (ctx->xinput_correlated &&
-            !joystick->low_frequency_rumble && !joystick->high_frequency_rumble) {
+        if (ctx->xinput_correlated) {
             /* We have been previously correlated, ensure we are still matching */
             /* This is required to deal with two (mostly) un-preventable mis-correlation situations:
               A) Since the HID data stream does not provide an initial state (but polling XInput does), if we open
@@ -1586,9 +1585,9 @@ RAWINPUT_UpdateOtherAPIs(SDL_Joystick *joystick)
                 ++ctx->xinput_uncorrelate_count;
                 /* Only un-correlate if this is consistent over multiple Update() calls - the timing of polling/event
                   pumping can easily cause this to uncorrelate for a frame.  2 seemed reliable in my testing, but
-                  let's set it to 5 to be safe.  An incorrect un-correlation will simply result in lower precision
+                  let's set it to 3 to be safe.  An incorrect un-correlation will simply result in lower precision
                   triggers for a frame. */
-                if (ctx->xinput_uncorrelate_count >= 5) {
+                if (ctx->xinput_uncorrelate_count >= 3) {
 #ifdef DEBUG_RAWINPUT
                     SDL_Log("UN-Correlated joystick %d to XInput device #%d\n", joystick->instance_id, ctx->xinput_slot);
 #endif

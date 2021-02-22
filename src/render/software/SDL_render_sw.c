@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -25,6 +25,7 @@
 #include "../SDL_sysrender.h"
 #include "SDL_render_sw_c.h"
 #include "SDL_hints.h"
+#include "SDL_assert.h"
 
 #include "SDL_draw.h"
 #include "SDL_blendfillrect.h"
@@ -434,7 +435,7 @@ SW_RenderCopyEx(SDL_Renderer * renderer, SDL_Surface *surface, SDL_Texture * tex
             retval = -1;
         } else {
             SDL_SetSurfaceBlendMode(src_clone, SDL_BLENDMODE_NONE);
-            retval = SDL_PrivateUpperBlitScaled(src_clone, srcrect, src_scaled, &scale_rect, texture->scaleMode);
+            retval = SDL_BlitScaled(src_clone, srcrect, src_scaled, &scale_rect);
             SDL_FreeSurface(src_clone);
             src_clone = src_scaled;
             src_scaled = NULL;
@@ -720,7 +721,7 @@ SW_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
                      * to avoid potentially frequent RLE encoding/decoding.
                      */
                     SDL_SetSurfaceRLE(surface, 0);
-                    SDL_PrivateUpperBlitScaled(src, srcrect, surface, dstrect, texture->scaleMode);
+                    SDL_BlitScaled(src, srcrect, surface, dstrect);
                 }
                 break;
             }

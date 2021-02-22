@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,6 +22,7 @@
 
 #if SDL_VIDEO_DRIVER_X11
 
+#include "SDL_assert.h"
 #include "SDL_hints.h"
 #include "../SDL_sysvideo.h"
 #include "../SDL_pixels_c.h"
@@ -325,7 +326,7 @@ SetupWindowData(_THIS, SDL_Window * window, Window w, BOOL created)
             SDL_SetKeyboardFocus(data->window);
         }
 
-        if (window->flags & SDL_WINDOW_MOUSE_GRABBED) {
+        if (window->flags & SDL_WINDOW_INPUT_GRABBED) {
             /* Tell x11 to clip mouse */
         }
     }
@@ -1561,11 +1562,12 @@ X11_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ramp)
 }
 
 void
-X11_SetWindowMouseGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
+X11_SetWindowGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
 {
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
     Display *display = data->videodata->display;
     SDL_bool oldstyle_fullscreen;
+    SDL_bool grab_keyboard;
 
     /* ICCCM2.0-compliant window managers can handle fullscreen windows
        If we're using XVidMode to change resolution we need to confine
@@ -1606,33 +1608,21 @@ X11_SetWindowMouseGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
         /* Raise the window if we grab the mouse */
         X11_XRaiseWindow(display, data->xwindow);
 
-        /* Now grab the keyboard on old-style fullscreen */
-        if (oldstyle_fullscreen) {
-            X11_SetWindowKeyboardGrab(_this, window, SDL_TRUE);
+        /* Now grab the keyboard */
+        if (SDL_GetHintBoolean(SDL_HINT_GRAB_KEYBOARD, SDL_FALSE)) {
+            grab_keyboard = SDL_TRUE;
+        } else {
+            /* We need to do this with the old style override_redirect
+               fullscreen window otherwise we won't get keyboard focus.
+            */
+            grab_keyboard = oldstyle_fullscreen;
+        }
+        if (grab_keyboard) {
+            X11_XGrabKeyboard(display, data->xwindow, True, GrabModeAsync,
+                          GrabModeAsync, CurrentTime);
         }
     } else {
         X11_XUngrabPointer(display, CurrentTime);
-    }
-    X11_XSync(display, False);
-}
-
-void
-X11_SetWindowKeyboardGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
-{
-    SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-    Display *display = data->videodata->display;
-
-    if (grabbed) {
-        /* If the window is unmapped, XGrab calls return GrabNotViewable,
-           so when we get a MapNotify later, we'll try to update the grab as
-           appropriate. */
-        if (window->flags & SDL_WINDOW_HIDDEN) {
-            return;
-        }
-
-        X11_XGrabKeyboard(display, data->xwindow, True, GrabModeAsync,
-                          GrabModeAsync, CurrentTime);
-    } else {
         X11_XUngrabKeyboard(display, CurrentTime);
     }
     X11_XSync(display, False);

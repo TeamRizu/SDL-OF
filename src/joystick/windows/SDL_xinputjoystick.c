@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,6 +24,7 @@
 
 #if SDL_JOYSTICK_XINPUT
 
+#include "SDL_assert.h"
 #include "SDL_hints.h"
 #include "SDL_timer.h"
 #include "SDL_windowsjoystick_c.h"
@@ -293,8 +294,7 @@ AddXInputDevice(Uint8 userid, BYTE SubType, JoyStick_DeviceData **pContext)
     }
 
 #ifdef SDL_JOYSTICK_HIDAPI
-    /* Since we're guessing about the VID/PID, use a hard-coded VID/PID to represent XInput */
-    if (HIDAPI_IsDevicePresent(USB_VENDOR_MICROSOFT, USB_PRODUCT_XBOX_ONE_XINPUT_CONTROLLER, version, pNewJoystick->joystickname)) {
+    if (HIDAPI_IsDevicePresent(vendor, product, version, pNewJoystick->joystickname)) {
         /* The HIDAPI driver is taking care of this device */
         SDL_free(pNewJoystick);
         return;

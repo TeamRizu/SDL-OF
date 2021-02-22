@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -63,13 +63,7 @@
 #include <sys/syspage.h>
 #endif
 
-#if (defined(__LINUX__) || defined(__ANDROID__)) && defined(__arm__)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <elf.h>
-
+#if (defined(__LINUX__) || defined(__ANDROID__)) && defined(__ARM_ARCH)
 /*#include <asm/hwcap.h>*/
 #ifndef AT_HWCAP
 #define AT_HWCAP 16
@@ -77,17 +71,24 @@
 #ifndef AT_PLATFORM
 #define AT_PLATFORM 15
 #endif
+/* Prevent compilation error when including elf.h would also try to define AT_* as an enum */
+#ifndef AT_NULL
+#define AT_NULL 0
+#endif
 #ifndef HWCAP_NEON
 #define HWCAP_NEON (1 << 12)
 #endif
+#if defined HAVE_GETAUXVAL
+#include <sys/auxv.h>
+#else
+#include <fcntl.h>
+#endif
 #endif
 
-#if defined(__ANDROID__) && defined(__arm__) && !defined(HAVE_GETAUXVAL)
+#if defined(__ANDROID__) && defined(__ARM_ARCH) && !defined(HAVE_GETAUXVAL)
+#if __ARM_ARCH < 8
 #include <cpu-features.h>
 #endif
-
-#if defined(HAVE_GETAUXVAL) || defined(HAVE_ELF_AUX_INFO)
-#include <sys/auxv.h>
 #endif
 
 #ifdef __RISCOS__
@@ -340,7 +341,7 @@ CPU_haveAltiVec(void)
     return altivec;
 }
 
-#if (defined(__ARM_ARCH) && (__ARM_ARCH >= 6)) || defined(__aarch64__)
+#if defined(__ARM_ARCH) && (__ARM_ARCH >= 6)
 static int
 CPU_haveARMSIMD(void)
 {
@@ -355,6 +356,12 @@ CPU_haveARMSIMD(void)
 }
 
 #elif defined(__LINUX__)
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <elf.h>
+
 static int
 CPU_haveARMSIMD(void)
 {
@@ -382,6 +389,7 @@ CPU_haveARMSIMD(void)
 }
 
 #elif defined(__RISCOS__)
+
 static int
 CPU_haveARMSIMD(void)
 {
@@ -410,20 +418,17 @@ CPU_haveARMSIMD(void)
 }
 #endif
 
-#if defined(__LINUX__) && defined(__arm__) && !defined(HAVE_GETAUXVAL)
+#if defined(__LINUX__) && defined(__ARM_ARCH) && !defined(HAVE_GETAUXVAL)
 static int
 readProcAuxvForNeon(void)
 {
     int neon = 0;
-    int fd;
-
-    fd = open("/proc/self/auxv", O_RDONLY);
-    if (fd >= 0)
-    {
-        Elf32_auxv_t aux;
-        while (read(fd, &aux, sizeof (aux)) == sizeof (aux)) {
-            if (aux.a_type == AT_HWCAP) {
-                neon = (aux.a_un.a_val & HWCAP_NEON) == HWCAP_NEON;
+    int kv[2];
+    const int fd = open("/proc/self/auxv", O_RDONLY);
+    if (fd != -1) {
+        while (read(fd, kv, sizeof (kv)) == sizeof (kv)) {
+            if (kv[0] == AT_HWCAP) {
+                neon = ((kv[1] & HWCAP_NEON) == HWCAP_NEON);
                 break;
             }
         }
@@ -448,22 +453,17 @@ CPU_haveNEON(void)
 #  endif
 /* All WinRT ARM devices are required to support NEON, but just in case. */
     return IsProcessorFeaturePresent(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE) != 0;
-#elif (defined(__ARM_ARCH) && (__ARM_ARCH >= 8)) || defined(__aarch64__)
+#elif defined(__ARM_ARCH) && (__ARM_ARCH >= 8)
     return 1;  /* ARMv8 always has non-optional NEON support. */
 #elif defined(__APPLE__) && defined(__ARM_ARCH) && (__ARM_ARCH >= 7)
     /* (note that sysctlbyname("hw.optional.neon") doesn't work!) */
     return 1;  /* all Apple ARMv7 chips and later have NEON. */
 #elif defined(__APPLE__)
     return 0;  /* assume anything else from Apple doesn't have NEON. */
-#elif !defined(__arm__)
-    return 0;  /* not an ARM CPU at all. */
 #elif defined(__OpenBSD__)
     return 1;  /* OpenBSD only supports ARMv7 CPUs that have NEON. */
-#elif defined(HAVE_ELF_AUX_INFO)
-    unsigned long hasneon = 0;
-    if (elf_aux_info(AT_HWCAP, (void *)&hasneon, (int)sizeof(hasneon)) != 0)
-        return 0;
-    return ((hasneon & HWCAP_NEON) == HWCAP_NEON);
+#elif !defined(__arm__)
+    return 0;  /* not an ARM CPU at all. */
 #elif defined(__QNXNTO__)
     return SYSPAGE_ENTRY(cpuinfo)->flags & ARM_CPU_FLAG_NEON;
 #elif (defined(__LINUX__) || defined(__ANDROID__)) && defined(HAVE_GETAUXVAL)
@@ -486,7 +486,7 @@ CPU_haveNEON(void)
     /* Use the VFPSupport_Features SWI to access the MVFR registers */
     {
         _kernel_swi_regs regs;
-        regs.r[0] = 0;
+	regs.r[0] = 0;
         if (_kernel_swi(VFPSupport_Features, &regs, &regs) == NULL) {
             if ((regs.r[2] & 0xFFF000) == 0x111000) {
                 return 1;
@@ -500,17 +500,6 @@ CPU_haveNEON(void)
 #endif
 }
 
-#if defined(__e2k__)
-inline int
-CPU_have3DNow(void)
-{
-#if defined(__3dNOW__)
-    return 1;
-#else
-    return 0;
-#endif
-}
-#else
 static int
 CPU_have3DNow(void)
 {
@@ -524,46 +513,7 @@ CPU_have3DNow(void)
     }
     return 0;
 }
-#endif
 
-#if defined(__e2k__)
-#define CPU_haveRDTSC() (0)
-#if defined(__MMX__)
-#define CPU_haveMMX() (1)
-#else
-#define CPU_haveMMX() (0)
-#endif
-#if defined(__SSE__)
-#define CPU_haveSSE() (1)
-#else
-#define CPU_haveSSE() (0)
-#endif
-#if defined(__SSE2__)
-#define CPU_haveSSE2() (1)
-#else
-#define CPU_haveSSE2() (0)
-#endif
-#if defined(__SSE3__)
-#define CPU_haveSSE3() (1)
-#else
-#define CPU_haveSSE3() (0)
-#endif
-#if defined(__SSE4_1__)
-#define CPU_haveSSE41() (1)
-#else
-#define CPU_haveSSE41() (0)
-#endif
-#if defined(__SSE4_2__)
-#define CPU_haveSSE42() (1)
-#else
-#define CPU_haveSSE42() (0)
-#endif
-#if defined(__AVX__)
-#define CPU_haveAVX() (1)
-#else
-#define CPU_haveAVX() (0)
-#endif
-#else
 #define CPU_haveRDTSC() (CPU_CPUIDFeatures[3] & 0x00000010)
 #define CPU_haveMMX() (CPU_CPUIDFeatures[3] & 0x00800000)
 #define CPU_haveSSE() (CPU_CPUIDFeatures[3] & 0x02000000)
@@ -572,19 +522,7 @@ CPU_have3DNow(void)
 #define CPU_haveSSE41() (CPU_CPUIDFeatures[2] & 0x00080000)
 #define CPU_haveSSE42() (CPU_CPUIDFeatures[2] & 0x00100000)
 #define CPU_haveAVX() (CPU_OSSavesYMM && (CPU_CPUIDFeatures[2] & 0x10000000))
-#endif
 
-#if defined(__e2k__)
-inline int
-CPU_haveAVX2(void)
-{
-#if defined(__AVX2__)
-    return 1;
-#else
-    return 0;
-#endif
-}
-#else
 static int
 CPU_haveAVX2(void)
 {
@@ -596,15 +534,7 @@ CPU_haveAVX2(void)
     }
     return 0;
 }
-#endif
 
-#if defined(__e2k__)
-inline int
-CPU_haveAVX512F(void)
-{
-    return 0;
-}
-#else
 static int
 CPU_haveAVX512F(void)
 {
@@ -616,7 +546,6 @@ CPU_haveAVX512F(void)
     }
     return 0;
 }
-#endif
 
 static int SDL_CPUCount = 0;
 
@@ -658,17 +587,6 @@ SDL_GetCPUCount(void)
     return SDL_CPUCount;
 }
 
-#if defined(__e2k__)
-inline const char *
-SDL_GetCPUType(void)
-{
-    static char SDL_CPUType[13];
-
-    SDL_strlcpy(SDL_CPUType, "E2K MACHINE", sizeof(SDL_CPUType));
-
-    return SDL_CPUType;
-}
-#else
 /* Oh, such a sweet sweet trick, just not very useful. :) */
 static const char *
 SDL_GetCPUType(void)
@@ -704,21 +622,9 @@ SDL_GetCPUType(void)
     }
     return SDL_CPUType;
 }
-#endif
 
 
 #ifdef TEST_MAIN  /* !!! FIXME: only used for test at the moment. */
-#if defined(__e2k__)
-inline const char *
-SDL_GetCPUName(void)
-{
-    static char SDL_CPUName[48];
-
-    SDL_strlcpy(SDL_CPUName, __builtin_cpu_name(), sizeof(SDL_CPUName));
-
-    return SDL_CPUName;
-}
-#else
 static const char *
 SDL_GetCPUName(void)
 {
@@ -791,7 +697,6 @@ SDL_GetCPUName(void)
     }
     return SDL_CPUName;
 }
-#endif
 #endif
 
 int
@@ -980,7 +885,7 @@ SDL_GetSystemRAM(void)
 #endif
 #ifdef HAVE_SYSCTLBYNAME
         if (SDL_SystemRAM <= 0) {
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
 #ifdef HW_REALMEM
             int mib[2] = {CTL_HW, HW_REALMEM};
 #else

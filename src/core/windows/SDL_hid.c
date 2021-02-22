@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,6 +22,7 @@
 
 #ifndef __WINRT__
 
+#include "SDL_assert.h"
 #include "SDL_hid.h"
 
 
@@ -48,7 +49,7 @@ WIN_LoadHIDDLL(void)
         return 0;  /* already loaded */
     }
 
-    s_pHIDDLL = LoadLibrary(TEXT("hid.dll"));
+    s_pHIDDLL = LoadLibrary(L"hid.dll");
     if (!s_pHIDDLL) {
         return -1;
     }

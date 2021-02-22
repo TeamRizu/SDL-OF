@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@
 #include <errno.h>              /* errno, strerror */
 #include <fcntl.h>
 #include <limits.h>             /* For the definition of PATH_MAX */
-#ifdef HAVE_INOTIFY
+#ifdef HAVE_INOTIFY_H
 #include <sys/inotify.h>
 #endif
 #include <sys/ioctl.h>
@@ -40,6 +40,7 @@
 #include <dirent.h>
 #include <linux/joystick.h>
 
+#include "SDL_assert.h"
 #include "SDL_hints.h"
 #include "SDL_joystick.h"
 #include "SDL_log.h"
@@ -499,21 +500,7 @@ static void SteamControllerDisconnectedCallback(int device_instance)
     }
 }
 
-#ifdef HAVE_INOTIFY
-#ifdef HAVE_INOTIFY_INIT1
-static int SDL_inotify_init1(void) {
-    return inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
-}
-#else
-static int SDL_inotify_init1(void) {
-    int fd = inotify_init();
-    if (fd  < 0) return -1;
-    fcntl(fd, F_SETFL, O_NONBLOCK);
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
-    return fd;
-}
-#endif
-
+#ifdef HAVE_INOTIFY_H
 static int
 StrHasPrefix(const char *string, const char *prefix)
 {
@@ -582,7 +569,7 @@ LINUX_InotifyJoystickDetect(void)
         }
     }
 }
-#endif /* HAVE_INOTIFY */
+#endif /* HAVE_INOTIFY_H */
 
 /* Detect devices by reading /dev/input. In the inotify code path we
  * have to do this the first time, to detect devices that already existed
@@ -632,13 +619,13 @@ LINUX_JoystickDetect(void)
     }
     else
 #endif
-#ifdef HAVE_INOTIFY
+#ifdef HAVE_INOTIFY_H
     if (inotify_fd >= 0 && last_joy_detect_time != 0) {
         LINUX_InotifyJoystickDetect();
     }
     else
 #endif
-    {
+	{
         LINUX_FallbackJoystickDetect();
     }
 
@@ -658,10 +645,7 @@ LINUX_JoystickInit(void)
             enumeration_method = ENUMERATION_FALLBACK;
         }
         else if (access("/.flatpak-info", F_OK) == 0
-                 || access("/run/host/container-manager", F_OK) == 0) {
-            /* Explicitly check `/.flatpak-info` because, for old versions of
-             * Flatpak, this was the only available way to tell if we were in
-             * a Flatpak container. */
+                 || access("/run/pressure-vessel", F_OK) == 0) {
             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT,
                          "Container detected, disabling udev integration");
             enumeration_method = ENUMERATION_FALLBACK;
@@ -715,14 +699,15 @@ LINUX_JoystickInit(void)
     else
 #endif
     {
-#if defined(HAVE_INOTIFY)
-        inotify_fd = SDL_inotify_init1();
+#ifdef HAVE_INOTIFY_H
+        inotify_fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
 
         if (inotify_fd < 0) {
             SDL_LogWarn(SDL_LOG_CATEGORY_INPUT,
                         "Unable to initialize inotify, falling back to polling: %s",
                         strerror (errno));
-        } else {
+        }
+        else {
             /* We need to watch for attribute changes in addition to
              * creation, because when a device is first created, it has
              * permissions that we can't read. When udev chmods it to
@@ -737,7 +722,7 @@ LINUX_JoystickInit(void)
                             strerror (errno));
             }
         }
-#endif /* HAVE_INOTIFY */
+#endif /* HAVE_INOTIFY_H */
 
         /* Report all devices currently present */
         LINUX_JoystickDetect();
@@ -845,7 +830,6 @@ ConfigJoystick(SDL_Joystick *joystick, int fd)
     unsigned long absbit[NBITS(ABS_MAX)] = { 0 };
     unsigned long relbit[NBITS(REL_MAX)] = { 0 };
     unsigned long ffbit[NBITS(FF_MAX)] = { 0 };
-    SDL_bool use_deadzones = SDL_GetHintBoolean(SDL_HINT_LINUX_JOYSTICK_DEADZONES, SDL_FALSE);
 
     /* See if this device uses the new unified event API */
     if ((ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybit)), keybit) >= 0) &&
@@ -881,7 +865,7 @@ ConfigJoystick(SDL_Joystick *joystick, int fd)
             }
             if (test_bit(i, absbit)) {
                 struct input_absinfo absinfo;
-                struct axis_correct *correct = &joystick->hwdata->abs_correct[i];
+                SDL_bool hint_used = SDL_GetHintBoolean(SDL_HINT_LINUX_JOYSTICK_DEADZONES, SDL_TRUE);
 
                 if (ioctl(fd, EVIOCGABS(i), &absinfo) < 0) {
                     continue;
@@ -894,25 +878,20 @@ ConfigJoystick(SDL_Joystick *joystick, int fd)
 #endif /* DEBUG_INPUT_EVENTS */
                 joystick->hwdata->abs_map[i] = joystick->naxes;
                 joystick->hwdata->has_abs[i] = SDL_TRUE;
-
-                correct->minimum = absinfo.minimum;
-                correct->maximum = absinfo.maximum;
-                if (correct->minimum != correct->maximum) {
-                    if (use_deadzones) {
-                        correct->use_deadzones = SDL_TRUE;
-                        correct->coef[0] = (absinfo.maximum + absinfo.minimum) - 2 * absinfo.flat;
-                        correct->coef[1] = (absinfo.maximum + absinfo.minimum) + 2 * absinfo.flat;
-                        t = ((absinfo.maximum - absinfo.minimum) - 4 * absinfo.flat);
-                        if (t != 0) {
-                            correct->coef[2] = (1 << 28) / t;
-                        } else {
-                            correct->coef[2] = 0;
-                        }
+                if (absinfo.minimum == absinfo.maximum) {
+                    joystick->hwdata->abs_correct[i].used = 0;
+                } else {
+                    joystick->hwdata->abs_correct[i].used = hint_used;
+                    joystick->hwdata->abs_correct[i].coef[0] =
+                        (absinfo.maximum + absinfo.minimum) - 2 * absinfo.flat;
+                    joystick->hwdata->abs_correct[i].coef[1] =
+                        (absinfo.maximum + absinfo.minimum) + 2 * absinfo.flat;
+                    t = ((absinfo.maximum - absinfo.minimum) - 4 * absinfo.flat);
+                    if (t != 0) {
+                        joystick->hwdata->abs_correct[i].coef[2] =
+                            (1 << 28) / t;
                     } else {
-                        float value_range = (correct->maximum - correct->minimum);
-                        float output_range = (SDL_JOYSTICK_AXIS_MAX - SDL_JOYSTICK_AXIS_MIN);
-
-                        correct->scale = (output_range / value_range);
+                        joystick->hwdata->abs_correct[i].coef[2] = 0;
                     }
                 }
                 ++joystick->naxes;
@@ -1132,31 +1111,26 @@ AxisCorrect(SDL_Joystick *joystick, int which, int value)
     struct axis_correct *correct;
 
     correct = &joystick->hwdata->abs_correct[which];
-    if (correct->minimum != correct->maximum) {
-        if (correct->use_deadzones) {
-            value *= 2;
-            if (value > correct->coef[0]) {
-                if (value < correct->coef[1]) {
-                    return 0;
-                }
-                value -= correct->coef[1];
-            } else {
-                value -= correct->coef[0];
+    if (correct->used) {
+        value *= 2;
+        if (value > correct->coef[0]) {
+            if (value < correct->coef[1]) {
+                return 0;
             }
-            value *= correct->coef[2];
-            value >>= 13;
+            value -= correct->coef[1];
         } else {
-            value = (int)SDL_floorf((value - correct->minimum) * correct->scale + SDL_JOYSTICK_AXIS_MIN + 0.5f);
+            value -= correct->coef[0];
         }
+        value *= correct->coef[2];
+        value >>= 13;
     }
 
     /* Clamp and return */
-    if (value < SDL_JOYSTICK_AXIS_MIN) {
-        return SDL_JOYSTICK_AXIS_MIN;
-    }
-    if (value > SDL_JOYSTICK_AXIS_MAX) {
-        return SDL_JOYSTICK_AXIS_MAX;
-    }
+    if (value < -32768)
+        return -32768;
+    if (value > 32767)
+        return 32767;
+
     return value;
 }
 
@@ -1173,7 +1147,7 @@ PollAllValues(SDL_Joystick *joystick)
             i = ABS_HAT3Y;
             continue;
         }
-        if (joystick->hwdata->has_abs[i]) {
+        if (joystick->hwdata->abs_correct[i].used) {
             if (ioctl(joystick->hwdata->fd, EVIOCGABS(i), &absinfo) >= 0) {
                 absinfo.value = AxisCorrect(joystick, i, absinfo.value);
 

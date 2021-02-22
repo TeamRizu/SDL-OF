@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -284,12 +284,15 @@ extern DECLSPEC int SDLCALL SDL_ShowCursor(int toggle);
 #define SDL_BUTTON_RIGHT    3
 #define SDL_BUTTON_X1       4
 #define SDL_BUTTON_X2       5
+#define SDL_WHEEL_UP        6
+#define SDL_WHEEL_DOWN      7
 #define SDL_BUTTON_LMASK    SDL_BUTTON(SDL_BUTTON_LEFT)
 #define SDL_BUTTON_MMASK    SDL_BUTTON(SDL_BUTTON_MIDDLE)
 #define SDL_BUTTON_RMASK    SDL_BUTTON(SDL_BUTTON_RIGHT)
 #define SDL_BUTTON_X1MASK   SDL_BUTTON(SDL_BUTTON_X1)
 #define SDL_BUTTON_X2MASK   SDL_BUTTON(SDL_BUTTON_X2)
-
+#define SDL_WHEEL_UPMASK    SDL_BUTTON(SDL_WHEEL_UP)    
+#define SDL_WHEEL_DOWNMASK  SDL_BUTTON(SDL_WHEEL_DOWN) 
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

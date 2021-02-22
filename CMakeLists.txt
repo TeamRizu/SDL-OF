@@ -5,18 +5,6 @@ endif()
 cmake_minimum_required(VERSION 3.0.0)
 project(SDL2 C CXX)
 
-if(WINDOWS_STORE)
-  enable_language(CXX)
-  cmake_minimum_required(VERSION 3.11)
-  add_definitions(-DSDL_BUILDING_WINRT=1 -ZW)
-  link_libraries(
-    -nodefaultlib:vccorlib$<$<CONFIG:Debug>:d>
-    -nodefaultlib:msvcrt$<$<CONFIG:Debug>:d>
-    vccorlib$<$<CONFIG:Debug>:d>.lib
-    msvcrt$<$<CONFIG:Debug>:d>.lib
-  )
-endif()
-
 # !!! FIXME: this should probably do "MACOSX_RPATH ON" as a target property
 # !!! FIXME:  for the SDL2 shared library (so you get an
 # !!! FIXME:  install_name ("soname") of "@rpath/libSDL-whatever.dylib"
@@ -32,9 +20,9 @@ include(CheckIncludeFiles)
 include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CheckCSourceCompiles)
+include(CheckOBJCSourceCompiles)
 include(CheckCSourceRuns)
 include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
 include(CheckTypeSize)
 include(CheckStructHasMember)
 include(CMakeDependentOption)
@@ -54,12 +42,12 @@ include(${SDL2_SOURCE_DIR}/cmake/sdlchecks.cmake)
 # set SDL_BINARY_AGE and SDL_INTERFACE_AGE to 0.
 set(SDL_MAJOR_VERSION 2)
 set(SDL_MINOR_VERSION 0)
-set(SDL_MICRO_VERSION 15)
+set(SDL_MICRO_VERSION 13)
 set(SDL_INTERFACE_AGE 1)
-set(SDL_BINARY_AGE 15)
+set(SDL_BINARY_AGE 13)
 set(SDL_VERSION "${SDL_MAJOR_VERSION}.${SDL_MINOR_VERSION}.${SDL_MICRO_VERSION}")
 # the following should match the versions in Xcode project file:
-set(DYLIB_CURRENT_VERSION 15.1.0)
+set(DYLIB_CURRENT_VERSION 12.0.0)
 set(DYLIB_COMPATIBILITY_VERSION 1.0.0)
 
 # Set defaults preventing destination file conflicts
@@ -128,6 +116,10 @@ elseif(UNIX AND NOT APPLE)
 elseif(APPLE)
   if(CMAKE_SYSTEM_NAME MATCHES ".*Darwin.*")
     set(DARWIN TRUE)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+      message("Found apple silicon m1.")
+      set(APPLE_SILICON TRUE)
+    endif()
   elseif(CMAKE_SYSTEM_NAME MATCHES ".*MacOS.*")
     set(MACOSX TRUE)
   elseif(CMAKE_SYSTEM_NAME MATCHES ".*tvOS.*")
@@ -173,7 +165,7 @@ endif()
 #  so we'll just use libusb when it's available. libusb does not support iOS,
 #  so we default to yes on iOS.
 #  TODO: Windows can support libusb, the hid.c file just depends on Unix APIs
-if((WINDOWS AND NOT WINDOWS_STORE) OR IOS OR TVOS OR ANDROID)
+if(WINDOWS OR IOS OR TVOS OR APPLE_SILICON OR ANDROID)
   set(HIDAPI_SKIP_LIBUSB TRUE)
 else()
   set(HIDAPI_SKIP_LIBUSB FALSE)
@@ -278,7 +270,7 @@ add_definitions(-DUSING_GENERATED_CONFIG_H)
 # General includes
 include_directories(${SDL2_BINARY_DIR}/include ${SDL2_SOURCE_DIR}/include)
 if(USE_GCC OR USE_CLANG)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -idirafter \"${SDL2_SOURCE_DIR}/src/video/khronos\"")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -idirafter ${SDL2_SOURCE_DIR}/src/video/khronos")
 else()
   include_directories(${SDL2_SOURCE_DIR}/src/video/khronos)
 endif()
@@ -387,7 +379,6 @@ foreach(_SUB ${SDL_X11_OPTIONS})
 endforeach()
 set_option(VIDEO_COCOA         "Use Cocoa video driver" ${APPLE})
 set_option(DIRECTX             "Use DirectX for Windows audio/video" ${WINDOWS})
-set_option(XINPUT              "Use Xinput for Windows" ${WINDOWS})
 set_option(WASAPI              "Use the Windows WASAPI audio driver" ${WINDOWS})
 set_option(RENDER_D3D          "Enable the Direct3D render driver" ${WINDOWS})
 set_option(RENDER_METAL        "Enable the Metal render driver" ${APPLE})
@@ -401,7 +392,6 @@ option_string(BACKGROUNDING_SIGNAL "number to use for magic backgrounding signal
 option_string(FOREGROUNDING_SIGNAL "number to use for magic foregrounding signal or 'OFF'" "OFF")
 set_option(HIDAPI              "Use HIDAPI for low level joystick drivers" ${OPT_DEF_HIDAPI})
 set_option(JOYSTICK_VIRTUAL    "Enable the virtual-joystick driver" ON)
-set_option(ASAN                "Use AddressSanitizer to detect memory errors" OFF)
 
 set(SDL_SHARED ${SDL_SHARED_ENABLED_BY_DEFAULT} CACHE BOOL "Build a shared version of the library")
 set(SDL_STATIC ${SDL_STATIC_ENABLED_BY_DEFAULT} CACHE BOOL "Build a static version of the library")
@@ -531,7 +521,7 @@ if(USE_GCC OR USE_CLANG)
     list(APPEND EXTRA_LDFLAGS "-Wl,-undefined,error")
     list(APPEND EXTRA_LDFLAGS "-Wl,-compatibility_version,${DYLIB_COMPATIBILITY_VERSION}")
     list(APPEND EXTRA_LDFLAGS "-Wl,-current_version,${DYLIB_CURRENT_VERSION}")
-  elseif(NOT OPENBSD)
+  else()
     set(CMAKE_REQUIRED_FLAGS "-Wl,--no-undefined")
     check_c_compiler_flag("" HAVE_NO_UNDEFINED)
     set(CMAKE_REQUIRED_FLAGS ${ORIG_CMAKE_REQUIRED_FLAGS})
@@ -780,14 +770,14 @@ if(LIBC)
     set(HAVE_SIGNAL_H 1)
     foreach(_FN
             malloc calloc realloc free qsort abs memset memcpy memmove memcmp
-            wcslen _wcsdup wcsdup wcsstr wcscmp wcsncmp _wcsicmp _wcsnicmp
+            wcslen wcslcpy wcslcat wcsdup wcsstr wcscmp wcsncmp _wcsicmp _wcsnicmp
             strlen _strrev _strupr _strlwr strchr strrchr strstr itoa _ltoa
             _ultoa strtol strtoul strtoll strtod atoi atof strcmp strncmp
-            _stricmp _strnicmp sscanf
+            _stricmp _strnicmp strtok_s sscanf
             acos acosf asin asinf atan atanf atan2 atan2f ceil ceilf
             copysign copysignf cos cosf exp expf fabs fabsf floor floorf fmod fmodf
-            log logf log10 log10f lround lroundf pow powf round roundf scalbn scalbnf
-            sin sinf sqrt sqrtf tan tanf trunc truncf)
+            log logf log10 log10f pow powf scalbn scalbnf sin sinf sqrt sqrtf tan tanf
+            trunc truncf)
       string(TOUPPER ${_FN} _UPPER)
       set(HAVE_${_UPPER} 1)
     endforeach()
@@ -819,10 +809,10 @@ if(LIBC)
     foreach(_FN
             strtod malloc calloc realloc free getenv setenv putenv unsetenv
             qsort abs bcopy memset memcpy memmove memcmp strlen strlcpy strlcat
-            _strrev _strupr _strlwr index rindex strchr strrchr strstr strtok_r
-            itoa _ltoa _uitoa _ultoa strtol strtoul _i64toa _ui64toa strtoll strtoull
+            _strrev _strupr _strlwr strchr strrchr strstr strtok_r itoa _ltoa
+            _uitoa _ultoa strtol strtoul _i64toa _ui64toa strtoll strtoull
             atoi atof strcmp strncmp _stricmp strcasecmp _strnicmp strncasecmp
-            wcscmp _wcsdup wcsdup wcslcat wcslcpy wcslen wcsncmp wcsstr
+            wcscmp wcsdup wcslcat wcslcpy wcslen wcsncmp wcsstr
             wcscasecmp _wcsicmp wcsncasecmp _wcsnicmp
             sscanf vsscanf vsnprintf fopen64 fseeko fseeko64 _Exit
             )
@@ -837,7 +827,6 @@ if(LIBC)
     check_symbol_exists(sysconf "unistd.h" HAVE_SYSCONF)
     check_symbol_exists(sysctlbyname "sys/types.h;sys/sysctl.h" HAVE_SYSCTLBYNAME)
     check_symbol_exists(getauxval "sys/auxv.h" HAVE_GETAUXVAL)
-    check_symbol_exists(elf_aux_info "sys/auxv.h" HAVE_ELF_AUX_INFO)
     check_symbol_exists(poll "poll.h" HAVE_POLL)
 
     check_library_exists(m pow "" HAVE_LIBM)
@@ -846,8 +835,8 @@ if(LIBC)
       foreach(_FN
               atan atan2 atanf atan2f ceil ceilf copysign copysignf cos cosf
               exp expf fabs fabsf floor floorf fmod fmodf log logf log10 log10f
-              lround lroundf pow powf round roundf scalbn scalbnf sin sinf sqrt
-              sqrtf tan tanf acos acosf asin asinf trunc truncf)
+              pow powf scalbn scalbnf sin sinf sqrt sqrtf tan tanf acos acosf
+              asin asinf trunc truncf)
         string(TOUPPER ${_FN} _UPPER)
         set(_HAVEVAR "HAVE_${_UPPER}")
         check_symbol_exists("${_FN}" "math.h" ${_HAVEVAR})
@@ -1183,8 +1172,6 @@ elseif(UNIX AND NOT APPLE AND NOT ANDROID AND NOT RISCOS)
     CheckOpenGLESX11()
     CheckWayland()
     CheckVivante()
-    # Need to check EGL before checking KMSDRM because KMSDRM depends on it.
-    CheckEGLKMSDRM()
     CheckKMSDRM()
   endif()
 
@@ -1228,12 +1215,6 @@ elseif(UNIX AND NOT APPLE AND NOT ANDROID AND NOT RISCOS)
     endif()
 
     check_include_file("libudev.h" HAVE_LIBUDEV_H)
-    check_include_file("sys/inotify.h" HAVE_SYS_INOTIFY_H)
-    check_symbol_exists(inotify_init "sys/inotify.h" HAVE_INOTIFY_INIT)
-    check_symbol_exists(inotify_init1 "sys/inotify.h" HAVE_INOTIFY_INIT1)
-    if(HAVE_SYS_INOTIFY_H AND HAVE_INOTIFY_INIT)
-      set(HAVE_INOTIFY 1)
-    endif()
 
     if(PKG_CONFIG_FOUND)
       pkg_search_module(DBUS dbus-1 dbus)
@@ -1390,11 +1371,6 @@ elseif(WINDOWS)
   file(GLOB CORE_SOURCES ${SDL2_SOURCE_DIR}/src/core/windows/*.c)
   set(SOURCE_FILES ${SOURCE_FILES} ${CORE_SOURCES})
 
-  if(WINDOWS_STORE)
-    file(GLOB WINRT_SOURCE_FILES ${SDL2_SOURCE_DIR}/src/core/winrt/*.c ${SDL2_SOURCE_DIR}/src/core/winrt/*.cpp)
-    list(APPEND SOURCE_FILES ${WINRT_SOURCE_FILES})
-  endif()
-
   if(MSVC)
     # Prevent codegen that would use the VC runtime libraries.
     set_property(DIRECTORY . APPEND PROPERTY COMPILE_OPTIONS "/GS-")
@@ -1403,13 +1379,8 @@ elseif(WINDOWS)
     endif()
   endif()
 
-  if(WINDOWS_STORE)
-    file(GLOB WINRT_MISC_SOURCES ${SDL2_SOURCE_DIR}/src/misc/winrt/*.cpp)
-    set(SOURCE_FILES ${SOURCE_FILES} ${WINRT_MISC_SOURCES})
-  else()
   file(GLOB MISC_SOURCES ${SDL2_SOURCE_DIR}/src/misc/windows/*.c)
   set(SOURCE_FILES ${SOURCE_FILES} ${MISC_SOURCES})
-  endif()
   set(HAVE_SDL_MISC TRUE)
 
   # Check for DirectX
@@ -1424,14 +1395,31 @@ elseif(WINDOWS)
       set(CMAKE_REQUIRED_FLAGS "/I\"$ENV{DXSDK_DIR}\\Include\"")
     endif()
 
+    if(HAVE_WIN32_CC)
+      # xinput.h may need windows.h, but doesn't include it itself.
+      check_c_source_compiles("
+        #include <windows.h>
+        #include <xinput.h>
+        int main(int argc, char **argv) { }" HAVE_XINPUT_H)
+      check_c_source_compiles("
+        #include <windows.h>
+        #include <xinput.h>
+        XINPUT_GAMEPAD_EX x1;
+        int main(int argc, char **argv) { }" HAVE_XINPUT_GAMEPAD_EX)
+      check_c_source_compiles("
+        #include <windows.h>
+        #include <xinput.h>
+        XINPUT_STATE_EX s1;
+        int main(int argc, char **argv) { }" HAVE_XINPUT_STATE_EX)
+    else()
+      check_include_file(xinput.h HAVE_XINPUT_H)
+    endif()
+
     check_include_file(d3d9.h HAVE_D3D_H)
     check_include_file(d3d11_1.h HAVE_D3D11_H)
     check_include_file(ddraw.h HAVE_DDRAW_H)
     check_include_file(dsound.h HAVE_DSOUND_H)
     check_include_file(dinput.h HAVE_DINPUT_H)
-    if(WINDOWS_STORE OR VCPKG_TARGET_TRIPLET MATCHES "arm-windows")
-      set(HAVE_DINPUT_H 0)
-    endif()
     check_include_file(dxgi.h HAVE_DXGI_H)
     if(HAVE_D3D_H OR HAVE_D3D11_H OR HAVE_DDRAW_H OR HAVE_DSOUND_H OR HAVE_DINPUT_H)
       set(HAVE_DIRECTX TRUE)
@@ -1444,44 +1432,24 @@ elseif(WINDOWS)
     set(CMAKE_REQUIRED_FLAGS ${ORIG_CMAKE_REQUIRED_FLAGS})
   endif()
 
-  if(XINPUT)
-    # xinput.h may need windows.h, but does not include it itself.
-    check_c_source_compiles("
-      #include <windows.h>
-      #include <xinput.h>
-      int main(int argc, char **argv) { }" HAVE_XINPUT_H)
-    check_c_source_compiles("
-      #include <windows.h>
-      #include <xinput.h>
-      XINPUT_GAMEPAD_EX x1;
-      int main(int argc, char **argv) { }" HAVE_XINPUT_GAMEPAD_EX)
-    check_c_source_compiles("
-      #include <windows.h>
-      #include <xinput.h>
-      XINPUT_STATE_EX s1;
-      int main(int argc, char **argv) { }" HAVE_XINPUT_STATE_EX)
-  endif()
-
   # headers needed elsewhere
   check_include_file(mmdeviceapi.h HAVE_MMDEVICEAPI_H)
   check_include_file(audioclient.h HAVE_AUDIOCLIENT_H)
   check_include_file(sensorsapi.h HAVE_SENSORSAPI_H)
 
   if(SDL_AUDIO)
-    if(NOT WINDOWS_STORE)
     set(SDL_AUDIO_DRIVER_WINMM 1)
     file(GLOB WINMM_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/winmm/*.c)
     set(SOURCE_FILES ${SOURCE_FILES} ${WINMM_AUDIO_SOURCES})
-    endif()
     set(HAVE_SDL_AUDIO TRUE)
 
-    if(HAVE_DSOUND_H AND NOT WINDOWS_STORE)
+    if(HAVE_DSOUND_H)
       set(SDL_AUDIO_DRIVER_DSOUND 1)
       file(GLOB DSOUND_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/directsound/*.c)
       set(SOURCE_FILES ${SOURCE_FILES} ${DSOUND_AUDIO_SOURCES})
     endif()
 
-    if(WASAPI AND HAVE_AUDIOCLIENT_H AND HAVE_MMDEVICEAPI_H AND NOT WINDOWS_STORE)
+    if(WASAPI AND HAVE_AUDIOCLIENT_H AND HAVE_MMDEVICEAPI_H)
       set(SDL_AUDIO_DRIVER_WASAPI 1)
       file(GLOB WASAPI_AUDIO_SOURCES ${SDL2_SOURCE_DIR}/src/audio/wasapi/*.c)
       set(SOURCE_FILES ${SOURCE_FILES} ${WASAPI_AUDIO_SOURCES})
@@ -1493,20 +1461,11 @@ elseif(WINDOWS)
     if(NOT SDL_LOADSO)
       message_error("SDL_VIDEO requires SDL_LOADSO, which is not enabled")
     endif()
-    if(WINDOWS_STORE)
-      set(SDL_VIDEO_DRIVER_WINRT 1)
-      file(GLOB WIN_VIDEO_SOURCES
-        ${SDL2_SOURCE_DIR}/src/video/winrt/*.c 
-        ${SDL2_SOURCE_DIR}/src/video/winrt/*.cpp
-        ${SDL2_SOURCE_DIR}/src/render/direct3d11/*.cpp
-        )
-    else()
     set(SDL_VIDEO_DRIVER_WINDOWS 1)
     file(GLOB WIN_VIDEO_SOURCES ${SDL2_SOURCE_DIR}/src/video/windows/*.c)
-    endif()
     set(SOURCE_FILES ${SOURCE_FILES} ${WIN_VIDEO_SOURCES})
 
-    if(RENDER_D3D AND HAVE_D3D_H AND NOT WINDOWS_STORE)
+    if(RENDER_D3D AND HAVE_D3D_H)
       set(SDL_VIDEO_RENDER_D3D 1)
       set(HAVE_RENDER_D3D TRUE)
     endif()
@@ -1518,19 +1477,17 @@ elseif(WINDOWS)
   endif()
 
   if(SDL_THREADS)
-    set(SDL_THREAD_GENERIC_COND_SUFFIX 1)
     set(SDL_THREAD_WINDOWS 1)
     set(SOURCE_FILES ${SOURCE_FILES}
-      ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_syscond.c
-      ${SDL2_SOURCE_DIR}/src/thread/windows/SDL_syscond_srw.c
       ${SDL2_SOURCE_DIR}/src/thread/windows/SDL_sysmutex.c
       ${SDL2_SOURCE_DIR}/src/thread/windows/SDL_syssem.c
       ${SDL2_SOURCE_DIR}/src/thread/windows/SDL_systhread.c
-      ${SDL2_SOURCE_DIR}/src/thread/windows/SDL_systls.c)
+      ${SDL2_SOURCE_DIR}/src/thread/windows/SDL_systls.c
+      ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_syscond.c)
     set(HAVE_SDL_THREADS TRUE)
   endif()
 
-  if(SDL_SENSOR AND HAVE_SENSORSAPI_H AND NOT WINDOWS_STORE)
+  if(SDL_SENSOR AND HAVE_SENSORSAPI_H)
     set(SDL_SENSOR_WINDOWS 1)
     set(HAVE_SDL_SENSORS TRUE)
     file(GLOB WINDOWS_SENSOR_SOURCES ${SDL2_SOURCE_DIR}/src/sensor/windows/*.c)
@@ -1538,14 +1495,9 @@ elseif(WINDOWS)
   endif()
 
   if(SDL_POWER)
-    if(WINDOWS_STORE)
-      set(SDL_POWER_WINRT 1)
-      set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/power/winrt/SDL_syspower.cpp)
-    else()
-      set(SDL_POWER_WINDOWS 1)
-      set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/power/windows/SDL_syspower.c)
-      set(HAVE_SDL_POWER TRUE)
-    endif()
+    set(SDL_POWER_WINDOWS 1)
+    set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/power/windows/SDL_syspower.c)
+    set(HAVE_SDL_POWER TRUE)
   endif()
 
   if(SDL_LOCALE)
@@ -1556,19 +1508,13 @@ elseif(WINDOWS)
 
   if(SDL_FILESYSTEM)
     set(SDL_FILESYSTEM_WINDOWS 1)
-    if(WINDOWS_STORE)
-      file(GLOB FILESYSTEM_SOURCES ${SDL2_SOURCE_DIR}/src/filesystem/winrt/*.cpp)
-    else()
-      file(GLOB FILESYSTEM_SOURCES ${SDL2_SOURCE_DIR}/src/filesystem/windows/*.c)
-    endif()
+    file(GLOB FILESYSTEM_SOURCES ${SDL2_SOURCE_DIR}/src/filesystem/windows/*.c)
     set(SOURCE_FILES ${SOURCE_FILES} ${FILESYSTEM_SOURCES})
     set(HAVE_SDL_FILESYSTEM TRUE)
   endif()
 
   # Libraries for Win32 native and MinGW
-  if(NOT WINDOWS_STORE)
-    list(APPEND EXTRA_LIBS user32 gdi32 winmm imm32 ole32 oleaut32 version uuid advapi32 setupapi shell32)
-  endif()
+  list(APPEND EXTRA_LIBS user32 gdi32 winmm imm32 ole32 oleaut32 version uuid advapi32 setupapi shell32)
 
   # TODO: in configure.ac the check for timers is set on
   # cygwin | mingw32* - does this include mingw32CE?
@@ -1590,7 +1536,7 @@ elseif(WINDOWS)
   set(SOURCE_FILES ${SOURCE_FILES} ${CORE_SOURCES})
 
   if(SDL_VIDEO)
-    if(VIDEO_OPENGL AND NOT WINDOWS_STORE)
+    if(VIDEO_OPENGL)
       set(SDL_VIDEO_OPENGL 1)
       set(SDL_VIDEO_OPENGL_WGL 1)
       set(SDL_VIDEO_RENDER_OGL 1)
@@ -1678,12 +1624,7 @@ elseif(APPLE)
     message_error("SDL_FILE must be enabled to build on MacOS X")
   endif()
 
-  if(IOS OR TVOS)
-    file(GLOB MISC_SOURCES ${SDL2_SOURCE_DIR}/src/misc/ios/*.m)
-    file(GLOB SDLMAIN_SOURCES ${SDL2_SOURCE_DIR}/src/main/uikit/*.c)
-  else()
-    file(GLOB MISC_SOURCES ${SDL2_SOURCE_DIR}/src/misc/macosx/*.m)
-  endif()
+  file(GLOB MISC_SOURCES ${SDL2_SOURCE_DIR}/src/misc/macosx/*.m)
   set(SOURCE_FILES ${SOURCE_FILES} ${MISC_SOURCES})
   set(HAVE_SDL_MISC TRUE)
 
@@ -1705,6 +1646,8 @@ elseif(APPLE)
       if(IOS OR TVOS)
         set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/hidapi/ios/hid.m)
         set(SDL_FRAMEWORK_COREBLUETOOTH 1)
+      elseif(APPLE_SILICON)
+        set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/hidapi/mac/hid.c)
       endif()
     endif()
     if(IOS OR TVOS)
@@ -1716,8 +1659,11 @@ elseif(APPLE)
       set(SDL_FRAMEWORK_GAMECONTROLLER 1)
       set(HAVE_SDL_SENSORS 1)
     else()
-      file(GLOB JOYSTICK_SOURCES ${SDL2_SOURCE_DIR}/src/joystick/darwin/*.c ${SDL2_SOURCE_DIR}/src/joystick/iphoneos/*.m)
-      # FIXME: add checks for SDL_JOYSTICK_MFI???
+      set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/joystick/darwin/SDL_iokitjoystick.c)
+      set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/joystick/iphoneos/SDL_mfijoystick.m)
+      #if(APPLE_SILICON)
+        #set(SDL_JOYSTICK_MFI 1)
+      #endif()
       set(SDL_JOYSTICK_IOKIT 1)
       set(SDL_FRAMEWORK_IOKIT 1)
       set(SDL_FRAMEWORK_FF 1)
@@ -1822,9 +1768,7 @@ elseif(APPLE)
     endif()
 
     if(VIDEO_VULKAN OR VIDEO_METAL OR RENDER_METAL)
-      set(ORIG_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
-      set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -ObjC")
-      check_c_source_compiles("
+      check_objc_source_compiles("
         #include <AvailabilityMacros.h>
         #import <Metal/Metal.h>
         #import <QuartzCore/CAMetalLayer.h>
@@ -1834,10 +1778,8 @@ elseif(APPLE)
         #endif
         int main()
         {
-            return 0;
         }
         " HAVE_FRAMEWORK_METAL)
-      set(CMAKE_REQUIRED_FLAGS ${ORIG_CMAKE_REQUIRED_FLAGS})
       if(HAVE_FRAMEWORK_METAL)
         set(SDL_FRAMEWORK_METAL 1)
         set(SDL_FRAMEWORK_QUARTZCORE 1)
@@ -2098,8 +2040,7 @@ set(EXTRA_CFLAGS ${_EXTRA_CFLAGS})
 # Compat helpers for the configuration files
 if(NOT CMAKE_HOST_WIN32)
   # TODO: we need a Windows script, too
-  execute_process(COMMAND sh ${SDL2_SOURCE_DIR}/build-scripts/updaterev.sh
-    WORKING_DIRECTORY ${SDL2_BINARY_DIR})
+  execute_process(COMMAND sh ${SDL2_SOURCE_DIR}/build-scripts/updaterev.sh)
 endif()
 if(NOT WINDOWS OR CYGWIN)
   set(prefix ${CMAKE_INSTALL_PREFIX})
@@ -2212,15 +2153,11 @@ endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS}")
 
 # Always build SDLmain
-if(NOT WINDOWS_STORE)
 add_library(SDL2main STATIC ${SDLMAIN_SOURCES})
-# alias target for in-tree builds
-add_library(SDL2::SDL2main ALIAS SDL2main)
 target_include_directories(SDL2main PUBLIC "$<BUILD_INTERFACE:${SDL2_SOURCE_DIR}/include>" $<INSTALL_INTERFACE:include> $<INSTALL_INTERFACE:include/SDL2>)
 set(_INSTALL_LIBS "SDL2main")
 if (NOT ANDROID)
   set_target_properties(SDL2main PROPERTIES DEBUG_POSTFIX "${SDL_CMAKE_DEBUG_POSTFIX}")
-endif()
 endif()
 
 if (ANDROID AND HAVE_HIDAPI)
@@ -2229,8 +2166,6 @@ endif()
 
 if(SDL_SHARED)
   add_library(SDL2 SHARED ${SOURCE_FILES} ${VERSION_SOURCES})
-  # alias target for in-tree builds
-  add_library(SDL2::SDL2 ALIAS SDL2)
   if(APPLE)
     set_target_properties(SDL2 PROPERTIES
       MACOSX_RPATH 1
@@ -2241,10 +2176,6 @@ if(SDL_SHARED)
       SOVERSION ${LT_REVISION}
       OUTPUT_NAME "SDL2-${LT_RELEASE}")
   else()
-    if(WINDOWS OR CYGWIN)
-      set_target_properties(SDL2 PROPERTIES
-        DEFINE_SYMBOL DLL_EXPORT)
-    endif()
     set_target_properties(SDL2 PROPERTIES
       VERSION ${SDL_VERSION}
       SOVERSION ${LT_REVISION}
@@ -2268,13 +2199,14 @@ if(SDL_SHARED)
     set_property(TARGET SDL2 APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
     target_compile_definitions(SDL2 PRIVATE IOS_DYLIB=1)
   endif()
+  if(APPLE_SILICON)
+    set_property(TARGET SDL2 APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-weak")
+  endif()
 endif()
 
 if(ANDROID)
   if(HAVE_HIDAPI)
     add_library(hidapi SHARED ${SDL2_SOURCE_DIR}/src/hidapi/android/hid.cpp)
-    # alias target for in-tree builds
-    add_library(SDL2::hidapi ALIAS hidapi)
   endif()
 
   if(MSVC AND NOT LIBC)
@@ -2291,8 +2223,6 @@ endif()
 if(SDL_STATIC)
   set (BUILD_SHARED_LIBS FALSE)
   add_library(SDL2-static STATIC ${SOURCE_FILES})
-  # alias target for in-tree builds
-  add_library(SDL2::SDL2-static ALIAS SDL2-static)
   if (NOT SDL_SHARED OR NOT WIN32)
     set_target_properties(SDL2-static PROPERTIES OUTPUT_NAME "SDL2")
     # Note: Apparently, OUTPUT_NAME must really be unique; even when
@@ -2319,60 +2249,9 @@ if(SDL_STATIC)
   if(IOS OR TVOS)
     set_property(TARGET SDL2-static APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-arc")
   endif()
-endif()
-
-macro(check_add_debug_flag FLAG SUFFIX)
-    check_c_compiler_flag(${FLAG} HAS_C_FLAG_${SUFFIX})
-    if (HAS_C_FLAG_${SUFFIX})
-        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
-    endif()
-
-    check_cxx_compiler_flag(${FLAG} HAS_CXX_${SUFFIX})
-    if (HAS_CXX_${SUFFIX})
-        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
-    endif()
-endmacro()
-
-macro(asan_check_add_debug_flag ASAN_FLAG)
-    check_add_debug_flag("-fsanitize=${ASAN_FLAG}" "${ASAN_FLAG}")
-endmacro()
-
-macro(asan_check_add_debug_flag2 ASAN_FLAG)
-    # for some sanitize flags we have to manipulate the CMAKE_REQUIRED_LIBRARIES:
-    # http://cmake.3232098.n2.nabble.com/CHECK-CXX-COMPILER-FLAG-doesn-t-give-correct-result-for-fsanitize-address-tp7600216p7600217.html
-
-    set(FLAG "-fsanitize=${ASAN_FLAG}")
-
-    set (STORED_REQLIBS ${CMAKE_REQUIRED_LIBRARIES})
-    set (CMAKE_REQUIRED_LIBRARIES "${FLAG};asan")
-    check_c_compiler_flag (${FLAG} HAS_C_FLAG_${ASAN_FLAG})
-    check_cxx_compiler_flag (${FLAG} HAS_CXX_FLAG_${ASAN_FLAG})
-    set (CMAKE_REQUIRED_LIBRARIES ${STORED_REQLIBS})
-
-    if (HAS_C_FLAG_${ASAN_FLAG})
-        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
-    endif()
-
-    if (HAS_CXX_${ASAN_FLAG})
-        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
-    endif()
-endmacro()
-
-# enable AddressSanitizer if supported
-if (ASAN)
-  asan_check_add_debug_flag2("address")
-  asan_check_add_debug_flag("bool")
-  asan_check_add_debug_flag("bounds")
-  asan_check_add_debug_flag("enum")
-  asan_check_add_debug_flag("float-cast-overflow")
-  asan_check_add_debug_flag("float-divide-by-zero")
-  asan_check_add_debug_flag("nonnull-attribute")
-  asan_check_add_debug_flag("returns-nonnull-attribute")
-  asan_check_add_debug_flag("signed-integer-overflow")
-  asan_check_add_debug_flag("undefined")
-  asan_check_add_debug_flag("vla-bound")
-  asan_check_add_debug_flag("leak")
-  asan_check_add_debug_flag("object-size")
+  if(APPLE_SILICON)
+    set_property(TARGET SDL2-static APPEND_STRING PROPERTY COMPILE_FLAGS "-fobjc-weak")
+  endif()
 endif()
 
 ##### Tests #####

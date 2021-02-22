@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +26,7 @@
 
 #include "SDL_cocoavideo.h"
 #include "../../events/SDL_events_c.h"
+#include "SDL_assert.h"
 #include "SDL_hints.h"
 
 /* This define was added in the 10.9 SDK. */
@@ -145,12 +146,6 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
                    selector:@selector(localeDidChange:)
                        name:NSCurrentLocaleDidChangeNotification
                      object:nil];
-
-        [[NSAppleEventManager sharedAppleEventManager]
-            setEventHandler:self
-                andSelector:@selector(handleURLEvent:withReplyEvent:)
-            forEventClass:kInternetEventClass
-                andEventID:kAEGetURL];
     }
 
     return self;
@@ -267,6 +262,12 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
         SDL_Delay(300);  /* !!! FIXME: this isn't right. */
         [NSApp activateIgnoringOtherApps:YES];
     }
+
+    [[NSAppleEventManager sharedAppleEventManager]
+    setEventHandler:self
+        andSelector:@selector(handleURLEvent:withReplyEvent:)
+      forEventClass:kInternetEventClass
+         andEventID:kAEGetURL];
 
     /* If we call this before NSApp activation, macOS might print a complaint
      * about ApplePersistenceIgnoreState. */

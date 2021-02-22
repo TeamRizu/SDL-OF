@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -58,15 +58,8 @@ struct joystick_hwdata
 
     struct axis_correct
     {
-        SDL_bool use_deadzones;
-
-        /* Deadzone coefficients */
+        int used;
         int coef[3];
-
-        /* Raw coordinate scale */
-        int minimum;
-        int maximum;
-        float scale;
     } abs_correct[ABS_MAX];
 
     SDL_bool fresh;

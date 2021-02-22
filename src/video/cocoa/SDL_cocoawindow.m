@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -41,6 +41,7 @@
 #include "SDL_cocoamousetap.h"
 #include "SDL_cocoaopengl.h"
 #include "SDL_cocoaopengles.h"
+#include "SDL_assert.h"
 
 /* #define DEBUG_COCOAWINDOW */
 
@@ -160,16 +161,6 @@
 
     SDL_assert([desiredType isEqualToString:NSFilenamesPboardType]);
     NSArray *array = [pasteboard propertyListForType:@"NSFilenamesPboardType"];
-
-    /* Code addon to update the mouse location */
-    NSPoint point = [sender draggingLocation];
-    SDL_Mouse *mouse = SDL_GetMouse();
-    int x = (int)point.x;
-    int y = (int)(sdlwindow->h - point.y);
-    if (x >= 0 && x < sdlwindow->w && y >= 0 && y < sdlwindow->h) {
-        SDL_SendMouseMotion(sdlwindow, mouse->mouseID, 0, x, y);
-    }
-    /* Code addon to update the mouse location */
 
     for (NSString *path in array) {
         NSURL *fileURL = [NSURL fileURLWithPath:path];
@@ -1109,7 +1100,7 @@ SetWindowStyle(SDL_Window * window, NSUInteger style)
     x = (int)point.x;
     y = (int)(window->h - point.y);
 
-    if (window->flags & SDL_WINDOW_MOUSE_GRABBED) {
+    if (window->flags & SDL_WINDOW_INPUT_GRABBED) {
         if (x < 0 || x >= window->w || y < 0 || y >= window->h) {
             if (x < 0) {
                 x = 0;
@@ -1958,7 +1949,7 @@ Cocoa_GetWindowGammaRamp(_THIS, SDL_Window * window, Uint16 * ramp)
 }
 
 void
-Cocoa_SetWindowMouseGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
+Cocoa_SetWindowGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
 {
     SDL_Mouse *mouse = SDL_GetMouse();
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
