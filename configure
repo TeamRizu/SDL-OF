@@ -648,7 +648,7 @@ ENABLE_STATIC_FALSE
 ENABLE_STATIC_TRUE
 ENABLE_SHARED_FALSE
 ENABLE_SHARED_TRUE
-PKG_CONFIG_LIBS_PRIV
+PKGCONFIG_LIBS_PRIV
 SDL_RLD_FLAGS
 SDL_STATIC_LIBS
 SDL_LIBS
@@ -678,6 +678,8 @@ FUSIONSOUND_CFLAGS
 ARTSCONFIG
 PULSEAUDIO_LIBS
 PULSEAUDIO_CFLAGS
+PIPEWIRE_LIBS
+PIPEWIRE_CFLAGS
 ESD_LIBS
 ESD_CFLAGS
 ESD_CONFIG
@@ -838,6 +840,8 @@ with_esd_prefix
 with_esd_exec_prefix
 enable_esdtest
 enable_esd_shared
+enable_pipewire
+enable_pipewire_shared
 enable_pulseaudio
 enable_pulseaudio_shared
 enable_arts
@@ -923,6 +927,8 @@ PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
 JACK_CFLAGS
 JACK_LIBS
+PIPEWIRE_CFLAGS
+PIPEWIRE_LIBS
 PULSEAUDIO_CFLAGS
 PULSEAUDIO_LIBS
 FUSIONSOUND_CFLAGS
@@ -1564,139 +1570,141 @@ Optional Features:
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --enable-assertions     Enable internal sanity checks
                           (auto/disabled/release/enabled/paranoid)
-                          [[default=auto]]
+                          [default=auto]
   --enable-dependency-tracking
-                          Use gcc -MMD -MT dependency tracking [[default=yes]]
-  --enable-libc           Use the system C library [[default=yes]]
-  --enable-gcc-atomics    Use gcc builtin atomics [[default=yes]]
-  --enable-atomic         Enable the atomic operations subsystem
-                          [[default=yes]]
-  --enable-audio          Enable the audio subsystem [[default=yes]]
-  --enable-video          Enable the video subsystem [[default=yes]]
-  --enable-render         Enable the render subsystem [[default=yes]]
-  --enable-events         Enable the events subsystem [[default=yes]]
-  --enable-joystick       Enable the joystick subsystem [[default=yes]]
+                          Use gcc -MMD -MT dependency tracking [default=yes]
+  --enable-libc           Use the system C library [default=yes]
+  --enable-gcc-atomics    Use gcc builtin atomics [default=yes]
+  --enable-atomic         Enable the atomic operations subsystem [default=yes]
+  --enable-audio          Enable the audio subsystem [default=yes]
+  --enable-video          Enable the video subsystem [default=yes]
+  --enable-render         Enable the render subsystem [default=yes]
+  --enable-events         Enable the events subsystem [default=yes]
+  --enable-joystick       Enable the joystick subsystem [default=yes]
   --enable-haptic         Enable the haptic (force feedback) subsystem
-                          [[default=yes]]
-  --enable-sensor         Enable the sensor subsystem [[default=yes]]
-  --enable-power          Enable the power subsystem [[default=yes]]
-  --enable-filesystem     Enable the filesystem subsystem [[default=yes]]
-  --enable-threads        Enable the threading subsystem [[default=yes]]
-  --enable-timers         Enable the timer subsystem [[default=yes]]
-  --enable-file           Enable the file subsystem [[default=yes]]
+                          [default=yes]
+  --enable-sensor         Enable the sensor subsystem [default=yes]
+  --enable-power          Enable the power subsystem [default=yes]
+  --enable-filesystem     Enable the filesystem subsystem [default=yes]
+  --enable-threads        Enable the threading subsystem [default=yes]
+  --enable-timers         Enable the timer subsystem [default=yes]
+  --enable-file           Enable the file subsystem [default=yes]
   --enable-loadso         Enable the shared object loading subsystem
-                          [[default=yes]]
-  --enable-cpuinfo        Enable the cpuinfo subsystem [[default=yes]]
-  --enable-assembly       Enable assembly routines [[default=yes]]
+                          [default=yes]
+  --enable-cpuinfo        Enable the cpuinfo subsystem [default=yes]
+  --enable-assembly       Enable assembly routines [default=yes]
   --enable-ssemath        Allow GCC to use SSE floating point math
-                          [[default=maybe]]
-  --enable-mmx            use MMX assembly routines [[default=yes]]
-  --enable-3dnow          use 3DNow! assembly routines [[default=yes]]
-  --enable-sse            use SSE assembly routines [[default=yes]]
-  --enable-sse2           use SSE2 assembly routines [[default=maybe]]
-  --enable-sse3           use SSE3 assembly routines [[default=maybe]]
-  --enable-altivec        use Altivec assembly routines [[default=yes]]
-  --enable-oss            support the OSS audio API [[default=maybe]]
-  --enable-alsa           support the ALSA audio API [[default=yes]]
+                          [default=maybe]
+  --enable-mmx            use MMX assembly routines [default=yes]
+  --enable-3dnow          use 3DNow! assembly routines [default=yes]
+  --enable-sse            use SSE assembly routines [default=yes]
+  --enable-sse2           use SSE2 assembly routines [default=maybe]
+  --enable-sse3           use SSE3 assembly routines [default=maybe]
+  --enable-altivec        use Altivec assembly routines [default=yes]
+  --enable-oss            support the OSS audio API [default=maybe]
+  --enable-alsa           support the ALSA audio API [default=yes]
   --disable-alsatest      Do not try to compile and run a test Alsa program
-  --enable-alsa-shared    dynamically load ALSA audio support [[default=yes]]
-  --enable-jack           use JACK audio [[default=yes]]
-  --enable-jack-shared    dynamically load JACK audio support [[default=yes]]
-  --enable-esd            support the Enlightened Sound Daemon [[default=yes]]
+  --enable-alsa-shared    dynamically load ALSA audio support [default=yes]
+  --enable-jack           use JACK audio [default=yes]
+  --enable-jack-shared    dynamically load JACK audio support [default=yes]
+  --enable-esd            support the Enlightened Sound Daemon [default=yes]
   --disable-esdtest       Do not try to compile and run a test ESD program
-  --enable-esd-shared     dynamically load ESD audio support [[default=yes]]
-  --enable-pulseaudio     use PulseAudio [[default=yes]]
+  --enable-esd-shared     dynamically load ESD audio support [default=yes]
+  --enable-pipewire       use Pipewire audio [default=yes]
+  --enable-pipewire-shared
+                          dynamically load Pipewire support [default=yes]
+  --enable-pulseaudio     use PulseAudio [default=yes]
   --enable-pulseaudio-shared
-                          dynamically load PulseAudio support [[default=yes]]
+                          dynamically load PulseAudio support [default=yes]
   --enable-arts           support the Analog Real Time Synthesizer
-                          [[default=yes]]
-  --enable-arts-shared    dynamically load aRts audio support [[default=yes]]
-  --enable-nas            support the NAS audio API [[default=yes]]
-  --enable-nas-shared     dynamically load NAS audio support [[default=yes]]
-  --enable-sndio          support the sndio audio API [[default=yes]]
-  --enable-sndio-shared   dynamically load sndio audio support [[default=yes]]
-  --enable-fusionsound    use FusionSound audio driver [[default=no]]
+                          [default=yes]
+  --enable-arts-shared    dynamically load aRts audio support [default=yes]
+  --enable-nas            support the NAS audio API [default=yes]
+  --enable-nas-shared     dynamically load NAS audio support [default=yes]
+  --enable-sndio          support the sndio audio API [default=yes]
+  --enable-sndio-shared   dynamically load sndio audio support [default=yes]
+  --enable-fusionsound    use FusionSound audio driver [default=no]
   --enable-fusionsound-shared
                           dynamically load fusionsound audio support
-                          [[default=yes]]
-  --enable-diskaudio      support the disk writer audio driver [[default=yes]]
-  --enable-dummyaudio     support the dummy audio driver [[default=yes]]
+                          [default=yes]
+  --enable-diskaudio      support the disk writer audio driver [default=yes]
+  --enable-dummyaudio     support the dummy audio driver [default=yes]
   --enable-libsamplerate  use libsamplerate for audio rate conversion
-                          [[default=yes]]
+                          [default=yes]
   --enable-libsamplerate-shared
-                          dynamically load libsamplerate [[default=yes]]
-  --enable-arm-simd       use SIMD assembly blitters on ARM [[default=no]]
-  --enable-arm-neon       use NEON assembly blitters on ARM [[default=no]]
-  --enable-video-wayland  use Wayland video driver [[default=yes]]
+                          dynamically load libsamplerate [default=yes]
+  --enable-arm-simd       use SIMD assembly blitters on ARM [default=no]
+  --enable-arm-neon       use NEON assembly blitters on ARM [default=no]
+  --enable-video-wayland  use Wayland video driver [default=yes]
   --enable-video-wayland-qt-touch
                           QtWayland server support for Wayland video driver
-                          [[default=yes]]
-  --enable-wayland-shared dynamically load Wayland support [[default=maybe]]
-  --enable-video-rpi      use Raspberry Pi video driver [[default=yes]]
-  --enable-video-x11      use X11 video driver [[default=yes]]
-  --enable-x11-shared     dynamically load X11 support [[default=maybe]]
+                          [default=yes]
+  --enable-wayland-shared dynamically load Wayland support [default=maybe]
+  --enable-video-rpi      use Raspberry Pi video driver [default=yes]
+  --enable-video-x11      use X11 video driver [default=yes]
+  --enable-x11-shared     dynamically load X11 support [default=maybe]
   --enable-video-x11-xcursor
-                          enable X11 Xcursor support [[default=yes]]
-  --enable-video-x11-xdbe enable X11 Xdbe support [[default=yes]]
+                          enable X11 Xcursor support [default=yes]
+  --enable-video-x11-xdbe enable X11 Xdbe support [default=yes]
   --enable-video-x11-xinerama
-                          enable X11 Xinerama support [[default=yes]]
+                          enable X11 Xinerama support [default=yes]
   --enable-video-x11-xinput
                           enable X11 XInput extension for manymouse, tablets,
-                          etc [[default=yes]]
+                          etc [default=yes]
   --enable-video-x11-xrandr
                           enable X11 Xrandr extension for fullscreen
-                          [[default=yes]]
+                          [default=yes]
   --enable-video-x11-scrnsaver
-                          enable X11 screensaver extension [[default=yes]]
+                          enable X11 screensaver extension [default=yes]
   --enable-video-x11-xshape
-                          enable X11 XShape support [[default=yes]]
-  --enable-video-x11-vm   use X11 VM extension for fullscreen [[default=yes]]
-  --enable-video-vivante  use Vivante EGL video driver [[default=yes]]
-  --enable-video-cocoa    use Cocoa video driver [[default=yes]]
-  --enable-video-metal    include Metal support [[default=yes]]
-  --enable-render-metal   enable the Metal render driver [[default=yes]]
-  --enable-video-directfb use DirectFB video driver [[default=no]]
+                          enable X11 XShape support [default=yes]
+  --enable-video-x11-vm   use X11 VM extension for fullscreen [default=yes]
+  --enable-video-vivante  use Vivante EGL video driver [default=yes]
+  --enable-video-cocoa    use Cocoa video driver [default=yes]
+  --enable-video-metal    include Metal support [default=yes]
+  --enable-render-metal   enable the Metal render driver [default=yes]
+  --enable-video-directfb use DirectFB video driver [default=no]
   --enable-directfb-shared
-                          dynamically load directfb support [[default=yes]]
-  --enable-video-kmsdrm   use KMSDRM video driver [[default=no]]
-  --enable-kmsdrm-shared  dynamically load kmsdrm support [[default=yes]]
-  --enable-video-dummy    use dummy video driver [[default=yes]]
-  --enable-video-opengl   include OpenGL support [[default=yes]]
-  --enable-video-opengles include OpenGL ES support [[default=yes]]
+                          dynamically load directfb support [default=yes]
+  --enable-video-kmsdrm   use KMSDRM video driver [default=no]
+  --enable-kmsdrm-shared  dynamically load kmsdrm support [default=yes]
+  --enable-video-dummy    use dummy video driver [default=yes]
+  --enable-video-opengl   include OpenGL support [default=yes]
+  --enable-video-opengles include OpenGL ES support [default=yes]
   --enable-video-opengles1
-                          include OpenGL ES 1.1 support [[default=yes]]
+                          include OpenGL ES 1.1 support [default=yes]
   --enable-video-opengles2
-                          include OpenGL ES 2.0 support [[default=yes]]
-  --enable-video-vulkan   include Vulkan support [[default=yes]]
-  --enable-libudev        enable libudev support [[default=yes]]
-  --enable-dbus           enable D-Bus support [[default=yes]]
-  --enable-ime            enable IME support [[default=yes]]
-  --enable-ibus           enable IBus support [[default=yes]]
-  --enable-fcitx          enable fcitx support [[default=yes]]
-  --enable-joystick-mfi   include macOS MFI joystick support [[default=yes]]
+                          include OpenGL ES 2.0 support [default=yes]
+  --enable-video-vulkan   include Vulkan support [default=yes]
+  --enable-libudev        enable libudev support [default=yes]
+  --enable-dbus           enable D-Bus support [default=yes]
+  --enable-ime            enable IME support [default=yes]
+  --enable-ibus           enable IBus support [default=yes]
+  --enable-fcitx          enable fcitx support [default=yes]
+  --enable-joystick-mfi   include macOS MFI joystick support [default=yes]
   --enable-pthreads       use POSIX threads for multi-threading
-                          [[default=yes]]
-  --enable-pthread-sem    use pthread semaphores [[default=yes]]
-  --enable-directx        use DirectX for Windows audio/video [[default=yes]]
-  --enable-xinput         use Xinput for Windows [[default=yes]]
-  --enable-wasapi         use the Windows WASAPI audio driver [[default=yes]]
-  --enable-sdl-dlopen     use dlopen for shared object loading [[default=yes]]
+                          [default=maybe]
+  --enable-pthread-sem    use pthread semaphores [default=maybe]
+  --enable-directx        use DirectX for Windows audio/video [default=yes]
+  --enable-xinput         use Xinput for Windows [default=yes]
+  --enable-wasapi         use the Windows WASAPI audio driver [default=yes]
+  --enable-sdl-dlopen     use dlopen for shared object loading [default=yes]
   --enable-hidapi         use HIDAPI for low level joystick drivers
-                          [[default=yes]]
+                          [default=yes]
   --enable-hidapi-libusb  use libusb for low level joystick drivers
-                          [[default=maybe]]
+                          [default=maybe]
   --enable-clock_gettime  use clock_gettime() instead of gettimeofday() on
-                          UNIX [[default=yes]]
-  --enable-rpath          use an rpath when linking SDL [[default=yes]]
+                          UNIX [default=yes]
+  --enable-rpath          use an rpath when linking SDL [default=yes]
   --enable-backgrounding-signal
                           number to use for magic backgrounding signal or 'no'
-                          [[default=no]]
+                          [default=no]
   --enable-foregrounding-signal
                           number to use for magic foregrounding signal or 'no'
-                          [[default=no]]
+                          [default=no]
   --enable-joystick-virtual
-                          enable virtual joystick APIs [[default=yes]]
-  --enable-render-d3d     enable the Direct3D render driver [[default=yes]]
+                          enable virtual joystick APIs [default=yes]
+  --enable-render-d3d     enable the Direct3D render driver [default=yes]
   --enable-sdl2-config    Install sdl2-config [default=yes]
 
 Optional Packages:
@@ -1732,6 +1740,10 @@ Some influential environment variables:
               path overriding pkg-config's built-in search path
   JACK_CFLAGS C compiler flags for JACK, overriding pkg-config
   JACK_LIBS   linker flags for JACK, overriding pkg-config
+  PIPEWIRE_CFLAGS
+              C compiler flags for PIPEWIRE, overriding pkg-config
+  PIPEWIRE_LIBS
+              linker flags for PIPEWIRE, overriding pkg-config
   PULSEAUDIO_CFLAGS
               C compiler flags for PULSEAUDIO, overriding pkg-config
   PULSEAUDIO_LIBS
@@ -16020,20 +16032,16 @@ $as_echo_n "checking for GCC -mno-cygwin option... " >&6; }
         cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-
 int
 main ()
 {
-
 
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_no_cygwin=yes
-
+  have_no_cygwin=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_no_cygwin" >&5
@@ -16324,15 +16332,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_gcc_mmd_mt=yes
-
+  have_gcc_mmd_mt=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_mmd_mt" >&5
@@ -16361,7 +16366,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -16369,7 +16373,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
 
         have_no_undefined=yes
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,--no-undefined"
+        BUILD_LDFLAGS="$BUILD_LDFLAGS -Wl,--no-undefined"
 
 fi
 rm -f core conftest.err conftest.$ac_objext \
@@ -16394,7 +16398,6 @@ case "$host" in
 int
 main ()
 {
-
 
   ;
   return 0;
@@ -16429,7 +16432,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -16462,7 +16464,6 @@ case "$host" in
 int
 main ()
 {
-
 
   ;
   return 0;
@@ -17055,7 +17056,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -17226,7 +17226,6 @@ $as_echo_n "checking for GCC builtin atomic operations... " >&6; }
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-
 int
 main ()
 {
@@ -17244,9 +17243,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-
-    have_gcc_atomics=yes
-
+  have_gcc_atomics=yes
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -17262,7 +17259,6 @@ $as_echo "#define HAVE_GCC_ATOMICS 1" >>confdefs.h
         cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-
 int
 main ()
 {
@@ -17276,9 +17272,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-
-        have_gcc_sync_lock_test_and_set=yes
-
+  have_gcc_sync_lock_test_and_set=yes
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -17603,15 +17597,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_gcc_mmx=yes
-
+  have_gcc_mmx=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_mmx" >&5
@@ -17659,9 +17650,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-
-        have_gcc_3dnow=yes
-
+  have_gcc_3dnow=yes
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -17711,15 +17700,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_gcc_sse=yes
-
+  have_gcc_sse=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_sse" >&5
@@ -17768,15 +17754,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_gcc_sse2=yes
-
+  have_gcc_sse2=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_sse2" >&5
@@ -17825,15 +17808,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_gcc_sse3=yes
-
+  have_gcc_sse3=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_sse3" >&5
@@ -17888,7 +17868,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -17917,15 +17896,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-            have_gcc_altivec=yes
-
+  have_gcc_altivec=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_altivec" >&5
@@ -17948,7 +17924,6 @@ $as_echo_n "checking for Altivec with GCC altivec.h and -faltivec option... " >&
 int
 main ()
 {
-
 
   ;
   return 0;
@@ -17979,15 +17954,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-            have_gcc_altivec=yes
-
+  have_gcc_altivec=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_altivec" >&5
@@ -18052,9 +18024,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-            have_oss=yes
-
+  have_oss=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         fi
@@ -18778,6 +18748,126 @@ _ACEOF
     fi
 }
 
+CheckPipewire()
+{
+    # Check whether --enable-pipewire was given.
+if test "${enable_pipewire+set}" = set; then :
+  enableval=$enable_pipewire;
+else
+  enable_pipewire=yes
+fi
+
+    if test x$enable_audio = xyes -a x$enable_pipewire = xyes; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libpipewire-0.3 >= 0.3.20" >&5
+$as_echo_n "checking for libpipewire-0.3 >= 0.3.20... " >&6; }
+
+if test -n "$PIPEWIRE_CFLAGS"; then
+    pkg_cv_PIPEWIRE_CFLAGS="$PIPEWIRE_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libpipewire-0.3 >= 0.3.20\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libpipewire-0.3 >= 0.3.20") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PIPEWIRE_CFLAGS=`$PKG_CONFIG --cflags "libpipewire-0.3 >= 0.3.20" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$PIPEWIRE_LIBS"; then
+    pkg_cv_PIPEWIRE_LIBS="$PIPEWIRE_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libpipewire-0.3 >= 0.3.20\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libpipewire-0.3 >= 0.3.20") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PIPEWIRE_LIBS=`$PKG_CONFIG --libs "libpipewire-0.3 >= 0.3.20" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        PIPEWIRE_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libpipewire-0.3 >= 0.3.20" 2>&1`
+        else
+	        PIPEWIRE_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libpipewire-0.3 >= 0.3.20" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$PIPEWIRE_PKG_ERRORS" >&5
+
+	audio_pipewire=no
+elif test $pkg_failed = untried; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	audio_pipewire=no
+else
+	PIPEWIRE_CFLAGS=$pkg_cv_PIPEWIRE_CFLAGS
+	PIPEWIRE_LIBS=$pkg_cv_PIPEWIRE_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	audio_pipewire=yes
+fi
+
+        if test x$audio_pipewire = xyes; then
+            # Check whether --enable-pipewire-shared was given.
+if test "${enable_pipewire_shared+set}" = set; then :
+  enableval=$enable_pipewire_shared;
+else
+  enable_pipewire_shared=yes
+fi
+
+            pipewire_lib=`find_lib "libpipewire-0.3.so.*" "$PIPEWIRE_LIBS" | sed 's/.*\/\(.*\)/\1/; q'`
+
+
+$as_echo "#define SDL_AUDIO_DRIVER_PIPEWIRE 1" >>confdefs.h
+
+            SOURCES="$SOURCES $srcdir/src/audio/pipewire/*.c"
+            EXTRA_CFLAGS="$EXTRA_CFLAGS $PIPEWIRE_CFLAGS"
+            if test x$have_loadso != xyes && \
+               test x$enable_pipewire_shared = xyes; then
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: You must have SDL_LoadObject() support for dynamic Pipewire loading" >&5
+$as_echo "$as_me: WARNING: You must have SDL_LoadObject() support for dynamic Pipewire loading" >&2;}
+            fi
+            if test x$have_loadso = xyes && \
+               test x$enable_pipewire_shared = xyes && test x$pipewire_lib != x; then
+                echo "-- dynamic libpipewire-0.3 -> $pipewire_lib"
+
+cat >>confdefs.h <<_ACEOF
+#define SDL_AUDIO_DRIVER_PIPEWIRE_DYNAMIC "$pipewire_lib"
+_ACEOF
+
+                SUMMARY_audio="${SUMMARY_audio} pipewire(dynamic)"
+            else
+                EXTRA_LDFLAGS="$EXTRA_LDFLAGS $PIPEWIRE_LIBS"
+                SUMMARY_audio="${SUMMARY_audio} pipewire"
+            fi
+            have_audio=yes
+        fi
+    fi
+}
+
 CheckPulseAudio()
 {
     # Check whether --enable-pulseaudio was given.
@@ -18982,9 +19072,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-            audio_arts=yes
-
+  audio_arts=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
             CFLAGS="$save_CFLAGS"
@@ -19586,15 +19674,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_gcc_fvisibility=yes
-
+  have_gcc_fvisibility=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_fvisibility" >&5
@@ -19623,15 +19708,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_gcc_no_strict_aliasing=yes
-
+  have_gcc_no_strict_aliasing=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_no_strict_aliasing" >&5
@@ -19660,15 +19742,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_gcc_preferred_stack_boundary=yes
-
+  have_gcc_preferred_stack_boundary=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_preferred_stack_boundary" >&5
@@ -19697,15 +19776,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_gcc_declaration_after_statement=yes
-
+  have_gcc_declaration_after_statement=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_declaration_after_statement" >&5
@@ -19734,15 +19810,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_gcc_Wall=yes
-
+  have_gcc_Wall=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_gcc_Wall" >&5
@@ -19903,7 +19976,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -20058,9 +20130,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-
-        have_video_rpi=yes
-
+  have_video_rpi=yes
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -20944,7 +21014,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -21370,9 +21439,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-                have_xrandr_h_hdr=yes
-
+  have_xrandr_h_hdr=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                 if test x$have_xrandr_h_hdr = xyes; then
@@ -21657,15 +21724,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_vivante_vdk=yes
-
+  have_vivante_vdk=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_vivante_vdk" >&5
@@ -21685,15 +21749,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_vivante_egl=yes
-
+  have_vivante_egl=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_vivante_egl" >&5
@@ -21753,15 +21814,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_cocoa=yes
-
+  have_cocoa=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_cocoa" >&5
@@ -21815,15 +21873,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_metal=yes
-
+  have_metal=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         CFLAGS="$save_CFLAGS"
@@ -22277,15 +22332,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        video_opengl=yes
-
+  video_opengl=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengl" >&5
@@ -22300,7 +22352,44 @@ $as_echo "#define SDL_VIDEO_OPENGL_GLX 1" >>confdefs.h
 
 $as_echo "#define SDL_VIDEO_RENDER_OGL 1" >>confdefs.h
 
-            SUMMARY_video="${SUMMARY_video} opengl"
+            SUMMARY_video="${SUMMARY_video} opengl(glx)"
+        fi
+    fi
+}
+
+CheckOpenGLKMSDRM()
+{
+    if test x$enable_video = xyes -a x$enable_video_opengl = xyes -a x$enable_video_kmsdrm = xyes; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OpenGL (GLVND) support" >&5
+$as_echo_n "checking for OpenGL (GLVND) support... " >&6; }
+        video_opengl=no
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+         #include <GL/gl.h>
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  video_opengl=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengl" >&5
+$as_echo "$video_opengl" >&6; }
+        if test x$video_opengl = xyes; then
+
+$as_echo "#define SDL_VIDEO_OPENGL 1" >>confdefs.h
+
+
+$as_echo "#define SDL_VIDEO_RENDER_OGL 1" >>confdefs.h
+
+            SUMMARY_video="${SUMMARY_video} opengl(glvnd)"
         fi
     fi
 }
@@ -22347,15 +22436,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        video_opengl_egl=yes
-
+  video_opengl_egl=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengl_egl" >&5
@@ -22380,15 +22466,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-            video_opengles_v1=yes
-
+  video_opengles_v1=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengles_v1" >&5
@@ -22418,15 +22501,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-            video_opengles_v2=yes
-
+  video_opengles_v2=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengles_v2" >&5
@@ -22463,15 +22543,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    video_opengl_egl=yes
-
+  video_opengl_egl=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengl_egl" >&5
@@ -22515,15 +22592,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        video_opengl_egl=yes
-
+  video_opengl_egl=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengl_egl" >&5
@@ -22551,15 +22625,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        video_opengles_v2=yes
-
+  video_opengles_v2=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengles_v2" >&5
@@ -22645,15 +22716,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        video_opengl_egl=yes
-
+  video_opengl_egl=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengl_egl" >&5
@@ -22677,15 +22745,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        video_opengles_v2=yes
-
+  video_opengles_v2=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $video_opengles_v2" >&5
@@ -22726,18 +22791,14 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-
 else
-
-                    enable_video_vulkan=no
-
+  enable_video_vulkan=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                 ;;
@@ -22759,18 +22820,14 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-
 else
-
-                    enable_video_vulkan=no
-
+  enable_video_vulkan=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                 CFLAGS="$save_CFLAGS"
@@ -22816,9 +22873,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        use_input_events=yes
-
+  use_input_events=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $use_input_events" >&5
@@ -22856,9 +22911,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    use_input_kd=yes
-
+  use_input_kd=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $use_input_kd" >&5
@@ -22894,9 +22947,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    use_input_kbio=yes
-
+  use_input_kbio=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $use_input_kbio" >&5
@@ -22927,27 +22978,25 @@ int
 main ()
 {
 
-    	struct wskbd_map_data data;
-    	ioctl(0, WSKBDIO_GETMAP, &data);
+     struct wskbd_map_data data;
+     ioctl(0, WSKBDIO_GETMAP, &data);
 
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-     use_input_wscons=yes
-
+  use_input_wscons=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $use_input_wscons" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $use_input_wscons" >&5
 $as_echo "$use_input_wscons" >&6; }
-     if test x$use_input_wscons = xyes; then
+    if test x$use_input_wscons = xyes; then
 
 $as_echo "#define SDL_INPUT_WSCONS 1" >>confdefs.h
 
-	SUMMARY_input="${SUMMARY_input} wscons"
-     fi
+        SUMMARY_input="${SUMMARY_input} wscons"
+    fi
 }
 
 CheckLibUDev()
@@ -23347,9 +23396,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-
-        enable_joystick_mfi=yes
-
+  enable_joystick_mfi=yes
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -23370,19 +23417,38 @@ $as_echo "#define SDL_JOYSTICK_MFI 1" >>confdefs.h
 
 CheckPTHREAD()
 {
-        # Check whether --enable-pthreads was given.
+
+
+    case "$host" in
+        *-*-emscripten*)
+            enable_pthreads_default=no
+            ;;
+        *)
+            enable_pthreads_default=yes
+            ;;
+    esac
+
+    # Check whether --enable-pthreads was given.
 if test "${enable_pthreads+set}" = set; then :
   enableval=$enable_pthreads;
 else
-  enable_pthreads=yes
+  enable_pthreads=maybe
 fi
 
         # Check whether --enable-pthread-sem was given.
 if test "${enable_pthread_sem+set}" = set; then :
   enableval=$enable_pthread_sem;
 else
-  enable_pthread_sem=yes
+  enable_pthread_sem=maybe
 fi
+
+
+    if test x$enable_pthreads = xmaybe; then
+        enable_pthreads=$enable_pthreads_default
+    fi
+    if test x$enable_pthread_sem = xmaybe; then
+        enable_pthread_sem=$enable_pthreads
+    fi
 
     case "$host" in
          *-*-android*)
@@ -23449,6 +23515,10 @@ fi
             pthread_cflags="-D_REENTRANT"
             pthread_lib=""
             ;;
+        *-*-emscripten*)
+            pthread_cflags="-D_REENTRANT -pthread"
+            pthread_lib="-pthread"
+            ;;
         *)
             pthread_cflags="-D_REENTRANT"
             pthread_lib="-lpthread"
@@ -23480,9 +23550,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-
-        use_pthreads=yes
-
+  use_pthreads=yes
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -23585,15 +23653,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-                have_pthread_sem=yes
-
+  have_pthread_sem=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_pthread_sem" >&5
@@ -23767,15 +23832,12 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-    have_win32_gcc=yes
-
+  have_win32_gcc=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_win32_gcc" >&5
@@ -23799,7 +23861,6 @@ $as_echo_n "checking Windows CE... " >&6; }
 int
 main ()
 {
-
 
   ;
   return 0;
@@ -24042,9 +24103,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-        have_dlopen=yes
-
+  have_dlopen=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_dlopen" >&5
@@ -24337,9 +24396,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-                have_usbhid=yes
-
+  have_usbhid=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_usbhid" >&5
@@ -24383,9 +24440,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-                    have_usbhid_ucr_data=yes
-
+  have_usbhid_ucr_data=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                     if test x$have_usbhid_ucr_data = xyes; then
@@ -24431,9 +24486,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-                    have_usbhid_new=yes
-
+  have_usbhid_new=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                     if test x$have_usbhid_new = xyes; then
@@ -24461,9 +24514,7 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-                    have_machine_joystick=yes
-
+  have_machine_joystick=yes
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
                     if test x$have_machine_joystick = xyes; then
@@ -24893,6 +24944,7 @@ $as_echo "#define SDL_VIDEO_DRIVER_ANDROID 1" >>confdefs.h
         CheckNEON
         CheckOSS
         CheckALSA
+        CheckPipewire
         CheckPulseAudio
         CheckJACK
         CheckARTSC
@@ -24908,6 +24960,7 @@ $as_echo "#define SDL_VIDEO_DRIVER_ANDROID 1" >>confdefs.h
         # Need to check for EGL first because KMSDRM depends on it.
         CheckEGLKMSDRM
         CheckKMSDRM
+        CheckOpenGLKMSDRM
         CheckOpenGLX11
         CheckOpenGLESX11
         CheckVulkan
@@ -25424,31 +25477,6 @@ $as_echo "#define SDL_FILESYSTEM_HAIKU 1" >>confdefs.h
         # The Haiku platform requires special setup.
         SOURCES="$srcdir/src/main/haiku/*.cc $SOURCES"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lroot -lbe -lmedia -lgame -ldevice -ltextencoding"
-        # Haiku's x86 spins use libstdc++.r4.so (for binary compat?), but
-        #  other spins, like x86-64, use a more standard "libstdc++.so.*"
-        as_ac_File=`$as_echo "ac_cv_file_"/boot/system/lib/libstdc++.r4.so"" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"/boot/system/lib/libstdc++.r4.so\"" >&5
-$as_echo_n "checking for \"/boot/system/lib/libstdc++.r4.so\"... " >&6; }
-if eval \${$as_ac_File+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  test "$cross_compiling" = yes &&
-  as_fn_error $? "cannot check for file existence when cross compiling" "$LINENO" 5
-if test -r ""/boot/system/lib/libstdc++.r4.so""; then
-  eval "$as_ac_File=yes"
-else
-  eval "$as_ac_File=no"
-fi
-fi
-eval ac_res=\$$as_ac_File
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_File"\" = x"yes"; then :
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lstdc++.r4"
-else
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lstdc++"
-fi
-
         ;;
     *-ios-*)
         ARCH=ios
@@ -25720,6 +25748,7 @@ $as_echo "#define SDL_AUDIO_DRIVER_EMSCRIPTEN 1" >>confdefs.h
         CheckDummyVideo
         CheckDiskAudio
         CheckDummyAudio
+        CheckPTHREAD
         CheckDLOPEN
         CheckClockGettime
         CheckEmscriptenGLES
@@ -25963,7 +25992,6 @@ int
 main ()
 {
 
-
   ;
   return 0;
 }
@@ -25994,12 +26022,12 @@ SDL_STATIC_LIBS="$EXTRA_LDFLAGS"
 
 
 if test x$enable_shared = xyes; then
-    PKG_CONFIG_LIBS_PRIV="
+    PKGCONFIG_LIBS_PRIV="
 Libs.private:"
     ENABLE_SHARED_TRUE=
     ENABLE_SHARED_FALSE="#"
 else
-    PKG_CONFIG_LIBS_PRIV=
+    PKGCONFIG_LIBS_PRIV=
     ENABLE_SHARED_TRUE="#"
     ENABLE_SHARED_FALSE=
 fi

@@ -33,6 +33,7 @@
 #include "SDL_waylandwindow.h"
 #include "SDL_waylandopengles.h"
 #include "SDL_waylandmouse.h"
+#include "SDL_waylandkeyboard.h"
 #include "SDL_waylandtouch.h"
 #include "SDL_waylandclipboard.h"
 #include "SDL_waylandvulkan.h"
@@ -48,7 +49,6 @@
 #include "xdg-shell-client-protocol.h"
 #include "xdg-shell-unstable-v6-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
-#include "org-kde-kwin-server-decoration-manager-client-protocol.h"
 #include "keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h"
 #include "idle-inhibit-unstable-v1-client-protocol.h"
 
@@ -206,6 +206,8 @@ Wayland_CreateDevice(int devindex)
     device->SetWindowBordered = Wayland_SetWindowBordered;
     device->SetWindowResizable = Wayland_SetWindowResizable;
     device->SetWindowSize = Wayland_SetWindowSize;
+    device->SetWindowMinimumSize = Wayland_SetWindowMinimumSize;
+    device->SetWindowMaximumSize = Wayland_SetWindowMaximumSize;
     device->SetWindowTitle = Wayland_SetWindowTitle;
     device->DestroyWindow = Wayland_DestroyWindow;
     device->SetWindowHitTest = Wayland_SetWindowHitTest;
@@ -213,6 +215,9 @@ Wayland_CreateDevice(int devindex)
     device->SetClipboardText = Wayland_SetClipboardText;
     device->GetClipboardText = Wayland_GetClipboardText;
     device->HasClipboardText = Wayland_HasClipboardText;
+    device->StartTextInput = Wayland_StartTextInput;
+    device->StopTextInput = Wayland_StopTextInput;
+    device->SetTextInputRect = Wayland_SetTextInputRect;
 
 #if SDL_VIDEO_VULKAN
     device->Vulkan_LoadLibrary = Wayland_Vulkan_LoadLibrary;
@@ -260,12 +265,32 @@ display_handle_mode(void *data,
 {
     SDL_VideoDisplay *display = data;
     SDL_WaylandOutputData* driverdata = display->driverdata;
+    SDL_DisplayMode mode;
 
     if (flags & WL_OUTPUT_MODE_CURRENT) {
         driverdata->width = width;
         driverdata->height = height;
         driverdata->refresh = refresh;
     }
+
+    /* Note that the width/height are NOT multiplied by scale_factor!
+     * This is intentional and is designed to get the unscaled modes, which is
+     * important for high-DPI games intending to use the display mode as the
+     * target drawable size. The scaled desktop mode will be added at the end
+     * when display_handle_done is called (see below).
+     */
+    SDL_zero(mode);
+    mode.format = SDL_PIXELFORMAT_RGB888;
+    if (driverdata->transform & WL_OUTPUT_TRANSFORM_90) {
+        mode.w = height;
+        mode.h = width;
+    } else {
+        mode.w = width;
+        mode.h = height;
+    }
+    mode.refresh_rate = refresh / 1000; /* mHz to Hz */
+    mode.driverdata = driverdata->output;
+    SDL_AddDisplayMode(display, &mode);
 }
 
 static void
@@ -283,13 +308,14 @@ display_handle_done(void *data,
 
     SDL_zero(mode);
     mode.format = SDL_PIXELFORMAT_RGB888;
-    mode.w = driverdata->width / driverdata->scale_factor;
-    mode.h = driverdata->height / driverdata->scale_factor;
     if (driverdata->transform & WL_OUTPUT_TRANSFORM_90) {
-       mode.w = driverdata->height / driverdata->scale_factor;
-       mode.h = driverdata->width / driverdata->scale_factor;
+        mode.w = driverdata->height / driverdata->scale_factor;
+        mode.h = driverdata->width / driverdata->scale_factor;
+    } else {
+        mode.w = driverdata->width / driverdata->scale_factor;
+        mode.h = driverdata->height / driverdata->scale_factor;
     }
-    mode.refresh_rate = driverdata->refresh / 1000; // mHz to Hz
+    mode.refresh_rate = driverdata->refresh / 1000; /* mHz to Hz */
     mode.driverdata = driverdata->output;
     SDL_AddDisplayMode(display, &mode);
     display->current_mode = mode;
@@ -418,11 +444,9 @@ display_handle_global(void *data, struct wl_registry *registry, uint32_t id,
     } else if (strcmp(interface, "zwp_idle_inhibit_manager_v1") == 0) {
         d->idle_inhibit_manager = wl_registry_bind(d->registry, id, &zwp_idle_inhibit_manager_v1_interface, 1);
     } else if (strcmp(interface, "wl_data_device_manager") == 0) {
-        d->data_device_manager = wl_registry_bind(d->registry, id, &wl_data_device_manager_interface, SDL_min(3, version));
+        Wayland_add_data_device_manager(d, id, version);
     } else if (strcmp(interface, "zxdg_decoration_manager_v1") == 0) {
         d->decoration_manager = wl_registry_bind(d->registry, id, &zxdg_decoration_manager_v1_interface, 1);
-    } else if (strcmp(interface, "org_kde_kwin_server_decoration_manager") == 0) {
-        d->kwin_server_decoration_manager = wl_registry_bind(d->registry, id, &org_kde_kwin_server_decoration_manager_interface, 1);
 
 #ifdef SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH
     } else if (strcmp(interface, "qt_touch_extension") == 0) {
@@ -475,6 +499,8 @@ Wayland_VideoInit(_THIS)
     data->classname = get_classname();
 
     WAYLAND_wl_display_flush(data->display);
+
+    Wayland_InitKeyboard(_this);
 
 #if SDL_USE_LIBDBUS
     SDL_DBus_Init();
@@ -559,17 +585,16 @@ Wayland_VideoQuit(_THIS)
     if (data->shell.zxdg)
         zxdg_shell_v6_destroy(data->shell.zxdg);
 
+    if (data->decoration_manager)
+        zxdg_decoration_manager_v1_destroy(data->decoration_manager);
+
     if (data->compositor)
         wl_compositor_destroy(data->compositor);
 
     if (data->registry)
         wl_registry_destroy(data->registry);
 
-/* !!! FIXME: other subsystems use D-Bus, so we shouldn't quit it here;
-       have SDL.c do this at a higher level, or add refcounting. */
-#if SDL_USE_LIBDBUS
-    SDL_DBus_Quit();
-#endif
+    Wayland_QuitKeyboard(_this);
 
     SDL_free(data->classname);
 }

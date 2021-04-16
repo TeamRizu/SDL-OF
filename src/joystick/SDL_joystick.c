@@ -95,6 +95,9 @@ static SDL_JoystickDriver *SDL_joystick_drivers[] = {
 #ifdef SDL_JOYSTICK_VIRTUAL
     &SDL_VIRTUAL_JoystickDriver,
 #endif
+#ifdef SDL_JOYSTICK_VITA
+    &SDL_VITA_JoystickDriver
+#endif
 #if defined(SDL_JOYSTICK_DUMMY) || defined(SDL_JOYSTICK_DISABLED)
     &SDL_DUMMY_JoystickDriver
 #endif
@@ -413,6 +416,7 @@ SDL_JoystickOpen(int device_index)
     joystick->instance_id = instance_id;
     joystick->attached = SDL_TRUE;
     joystick->epowerlevel = SDL_JOYSTICK_POWER_UNKNOWN;
+    joystick->led_expiration = SDL_GetTicks();
 
     if (driver->Open(joystick, device_index) < 0) {
         SDL_free(joystick);
@@ -951,6 +955,7 @@ int
 SDL_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
 {
     int result;
+    SDL_bool isfreshvalue;
 
     if (!SDL_PrivateJoystickValid(joystick)) {
         return -1;
@@ -958,13 +963,17 @@ SDL_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
 
     SDL_LockJoysticks();
 
-    if (red == joystick->led_red &&
-        green == joystick->led_green &&
-        blue == joystick->led_blue) {
+    isfreshvalue = red != joystick->led_red ||
+        green != joystick->led_green ||
+        blue != joystick->led_blue;
+
+    if ( isfreshvalue || SDL_TICKS_PASSED( SDL_GetTicks(), joystick->led_expiration ) ) {
+        result = joystick->driver->SetLED(joystick, red, green, blue);
+        joystick->led_expiration = SDL_GetTicks() + SDL_LED_MIN_REPEAT_MS;
+    }
+    else {
         /* Avoid spamming the driver */
         result = 0;
-    } else {
-        result = joystick->driver->SetLED(joystick, red, green, blue);
     }
 
     /* Save the LED value regardless of success, so we don't spam the driver */
@@ -1812,6 +1821,7 @@ SDL_GetJoystickGameControllerType(const char *name, Uint16 vendor, Uint16 produc
             0x15e4, /* Numark */
             0x162e, /* Joytech */
             0x1689, /* Razer Onza */
+            0x1949, /* Lab126, Inc. */
             0x1bad, /* Harmonix */
             0x20d6, /* PowerA */
             0x24c6, /* PowerA */
